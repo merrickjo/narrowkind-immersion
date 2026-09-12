@@ -9,7 +9,7 @@
  *
  * Bump SHELL_V to force a re-download of index.html / plan.json / books.json.
  */
-const SHELL_V = 'nk-shell-v2';
+const SHELL_V = 'nk-shell-v3';
 const DATA_V  = 'nk-data-v1';
 const SHELL = ['./', 'index.html', 'plan.json', 'books.json', 'manifest.json', 'icon.svg'];
 

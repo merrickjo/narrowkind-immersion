@@ -197,9 +197,13 @@ const SAME_ORIGIN = (() => {
     return /^https?:$/.test(location.protocol) && !/(^|\.)claude\.ai$|(^|\.)anthropic\.com$|usercontent/.test(location.hostname) ? o : '';
   } catch { return ''; }
 })();
+/* A copy opened away from its own Worker — the Artifact preview, a file://
+   copy — still reads, by falling back to the deployed address. This is a
+   public URL, not a secret: the ESV key lives only in the Worker. */
+const DEPLOYED_WORKER = 'https://narrowkind-scripture.merrickjo.workers.dev';
 const cfg = () => {
   const c = Object.assign({ worker: '', key: '', size: 19, lead: 1.62, invert: 0 }, LS.get('nk:cfg', {}));
-  if (!c.worker) c.worker = SAME_ORIGIN;
+  if (!c.worker) c.worker = SAME_ORIGIN || DEPLOYED_WORKER;
   return c;
 };
 const setCfg = (patch) => { const c = Object.assign(cfg(), patch); LS.set('nk:cfg', c); applyCfg(); return c; };
