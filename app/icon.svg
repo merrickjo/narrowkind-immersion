@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Narrowkind Immersion">
+  <!-- Two inks only, 1px-equivalent hairlines, square corners: the same
+       constraints the reader itself obeys, so the launcher icon does not
+       dither on a Carta panel. A narrow gate, and a page open in it. -->
+  <rect width="512" height="512" fill="#FFFFFF"/>
+  <rect x="16" y="16" width="480" height="480" fill="none" stroke="#000000" stroke-width="16"/>
+  <path d="M256 112 v288" stroke="#000000" stroke-width="14"/>
+  <path d="M256 136 C 200 108, 136 104, 96 108 v264 c 40 -4 104 0 160 28"
+        fill="none" stroke="#000000" stroke-width="16" stroke-linejoin="miter"/>
+  <path d="M256 136 C 312 108, 376 104, 416 108 v264 c -40 -4 -104 0 -160 28"
+        fill="none" stroke="#000000" stroke-width="16" stroke-linejoin="miter"/>
+  <path d="M136 168 h72 M136 208 h72 M136 248 h72 M304 168 h72 M304 208 h72 M304 248 h72"
+        stroke="#000000" stroke-width="10"/>
+</svg>

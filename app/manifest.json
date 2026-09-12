@@ -1,0 +1,15 @@
+{
+  "name": "Narrowkind Immersion",
+  "short_name": "Narrowkind",
+  "description": "Whole-Bible immersion reading — passage by passage, built for e-ink.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "monochrome" }
+  ]
+}

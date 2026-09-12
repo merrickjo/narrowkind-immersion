@@ -1,3 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Narrowkind Immersion</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
@@ -105,9 +117,19 @@ h2{font-family:var(--serif);font-weight:600;font-size:18px;margin:0;line-height:
          vertical-align:.5em;line-height:0;margin-right:.12em;letter-spacing:0;font-variant-numeric:tabular-nums}
 #flow .chapter-num{font-size:.72em;vertical-align:.34em}
 #flow .footnote{display:none}          /* footnote markers add speckle; bodies live on the Notes page */
-#flow .line{display:block}
-#flow .indent{padding-left:1.3em}
-#flow .begin-line-group,#flow .end-line-group{display:none}
+/* Hanging indent: a poetic line that overruns the measure must not return to
+   the verse margin, or the reader cannot tell a wrap from a new line. */
+#flow .line{display:block;padding-left:1.15em;text-indent:-1.15em}
+/* ESV separates poetic lines with BOTH a block .line and a trailing <br>.
+   Left alone that <br> opens an empty line box after every line, so a psalm
+   reads double-spaced and burns pages on a panel that turns slowly. The
+   block already ends the line; only the redundant break is removed, and
+   prose <br> (the footnote block uses them) is untouched. */
+#flow .line + br{display:none}
+#flow .indent{padding-left:2.45em}
+#flow .indent-2{padding-left:3.75em}
+#flow .begin-line-group{display:none}
+#flow .end-line-group{display:block;height:.5em}   /* stanza break, no blank line */
 #flow .divine-name,#flow .small-caps{font-variant-caps:small-caps;letter-spacing:.04em}
 #flow em,#flow i{font-style:italic}
 #flow .woc{font-style:normal}
@@ -146,6 +168,8 @@ textarea::placeholder{color:var(--ink);opacity:.45}
 .tapzone.l{left:0}.tapzone.r{right:0}
 .hidden{display:none!important}
 </style>
+</head>
+<body>
 
 <div class="frame">
   <div class="topbar" id="topbar"></div>
@@ -646,3 +670,12 @@ function viewSetup() {
 boot().catch(e => { inner.innerHTML = `<div class="panel"><h2>Could not load the plan</h2><p>${esc(e.message)}</p></div>`; });
 })();
 </script>
+<script>
+/* Offline is the point: this reader is meant to live on an e-ink device that
+   is often out of range. The shell and the plan are cached on first visit. */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

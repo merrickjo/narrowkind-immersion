@@ -79,14 +79,20 @@ const completions = buildNtCompletions();
 function spliceAfter(list, afterDay, made, meta) {
   const at = list.findIndex((e) => e.day === afterDay);
   if (at < 0) throw new Error(`no entry on day ${afterDay} to splice after`);
-  const rows = made.map((r) => ({
-    plan: meta.plan, day: null, week: list[at].week, movement: list[at].movement,
+  // Fractional days keep every existing Notion row number intact while still
+  // sorting these entries into the right place in the plan.
+  const rows = made.map((r, i) => ({
+    plan: meta.plan, day: +(afterDay + (i + 1) / 10).toFixed(1),
+    week: list[at].week, movement: list[at].movement,
     type: 'reading', passage: r.passage, book: r.book, ref: r.ref || r.passage,
-    verses: r.verses, generated: true, notion: false, reason: meta.reason,
+    verses: r.verses, generated: true, notion: true, reason: meta.reason,
   }));
   list.splice(at + 1, 0, ...rows);
   return rows.length;
 }
+// WEB ends Romans at 16:25 because it prints the doxology at 14:24-26; the
+// ESV prints it at 16:25-27. Display the ESV's ending, query with the pad.
+completions.romans[completions.romans.length - 1].passage = 'Romans 16:17-27';
 spliceAfter(nt, 100, completions.romans, { plan: 'nt', reason: 'completes Romans (plan ended at 14:23)' });
 spliceAfter(nt, 207, completions.revelation, { plan: 'nt', reason: 'completes Revelation (plan ended at 16:11)' });
 
@@ -95,7 +101,7 @@ const otTorah = [...parseReadings('ot.txt', 'ot'), ...parseMarks('ot-marks.txt',
 spliceAfter(otTorah, 46, [{ passage: 'Genesis 22:20-24', book: 'Genesis', verses: 5 }],
   { plan: 'ot', reason: 'fills gap between Gen 22:1-19 and Gen 23:1-20' });
 
-const otTail = buildOtTail({ startWeek: 59 }).map((e) => ({ ...e, plan: 'ot', ref: e.type === 'reading' ? (e.ref || e.passage) : null }));
+const otTail = buildOtTail({ startWeek: 59 }).map((e) => ({ ...e, plan: 'ot', notion: true, ref: e.type === 'reading' ? (e.ref || e.passage) : null }));
 const ot = [...otTorah, ...otTail];
 
 // ---- sequence, assemble ------------------------------------------------
@@ -120,8 +126,10 @@ const plan = {
 const problems = [];
 const fromNotion = { nt: 519, ot: 440 };
 for (const p of plan.plans) {
+  // Every entry now has a Notion row: the originals, the spliced completions
+  // (fractional days), and the generated OT tail.
   const notionRows = p.entries.filter((e) => e.notion).length;
-  const expected = p.id === 'ot' ? 348 : fromNotion[p.id];   // OT: only the sequenced Torah rows
+  const expected = p.id === 'ot' ? 349 + 1218 : fromNotion[p.id] + 13;
   if (notionRows !== expected) problems.push(`${p.id}: ${notionRows} Notion-backed entries, expected ${expected}`);
   const seqs = new Set(), days = new Set();
   for (const e of p.entries) {

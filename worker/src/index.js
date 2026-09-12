@@ -25,6 +25,8 @@
  *           APP_KEY      (optional — shared secret gate)
  */
 
+const PARSER_VERSION = 3;
+
 const ESV_ENDPOINT = 'https://api.esv.org/v3/passage/html/';
 
 const ESV_PARAMS = {
@@ -79,22 +81,46 @@ const stripTags = (html) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/** Pull the trailing footnote block out of the ESV markup. */
+/**
+ * Collect footnotes.
+ *
+ * The ESV HTML endpoint carries each note's body HTML-escaped inside the
+ * `title` attribute of its `<a class="fn">` anchor, and only emits a trailing
+ * `<div class="footnotes">` under some option combinations. Read the titles
+ * first, fall back to the block if it is there.
+ */
 function extractFootnotes(html) {
-  const m = html.match(/<div class="footnotes">([\s\S]*?)<\/div>/);
-  if (!m) return { body: html, notes: [] };
-  const notes = [];
-  const re = /<p[^>]*>([\s\S]*?)<\/p>/g;
-  let n, i = 0;
-  while ((n = re.exec(m[1]))) {
-    const chunk = n[1];
-    const idm = chunk.match(/href="#b(\d+)"/);
-    const text = stripTags(chunk.replace(/<span class="footnote">[\s\S]*?<\/span>/, '')).replace(/^\[\d+\]\s*/, '');
-    if (!text) continue;
-    notes.push({ id: idm ? idm[1] : String(++i), text });
+  const notes = new Map();
+
+  const anchor = /<sup class="footnote">\s*<a[^>]*\bid="fb([\w.-]+)"[^>]*\btitle="([^"]*)"[^>]*>(\d+)<\/a>\s*<\/sup>/g;
+  let a;
+  while ((a = anchor.exec(html))) {
+    const text = stripTags(unescapeAttr(a[2]));
+    if (text) notes.set(a[3], { id: a[3], text, anchor: a[1] });
   }
-  return { body: html.replace(m[0], ''), notes };
+
+  let body = html;
+  const block = html.match(/<div class="footnotes">([\s\S]*?)<\/div>/);
+  if (block) {
+    body = html.replace(block[0], '');
+    const re = /<p[^>]*>([\s\S]*?)<\/p>/g;
+    let n, i = 0;
+    while ((n = re.exec(block[1]))) {
+      const chunk = n[1];
+      const idm = chunk.match(/href="#fb?([\w.-]+)"/);
+      const text = stripTags(chunk.replace(/<span class="footnote">[\s\S]*?<\/span>/, '')).replace(/^\[\d+\]\s*/, '');
+      if (!text) continue;
+      const key = idm ? (idm[1].match(/^(\d+)/)?.[1] ?? String(++i)) : String(++i);
+      notes.set(key, { id: key, text });
+    }
+  }
+
+  return { body, notes: [...notes.values()].map(({ id, text }) => ({ id, text })) };
 }
+
+const unescapeAttr = (s) =>
+  s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+   .replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 
 /**
  * Split the passage markup into verses. Headings (<h3>) and Psalm
@@ -102,7 +128,14 @@ function extractFootnotes(html) {
  * jwilkey contract.
  */
 function toVerses(body, allNotes) {
-  const marker = /<b class="(?:verse-num|chapter-num)"[^>]*>\s*(?:(\d+):)?(\d+)\s*(?:&nbsp;)?\s*<\/b>/g;
+  // Verse markers carry compound classes in real ESV output — "verse-num",
+  // "chapter-num", "verse-num inline" (poetry), "verse-num woc" (words of
+  // Christ) — so match the class as a token list, not an exact string.
+  // The id attribute encodes BBCCCVVV and is the reliable source for
+  // chapter and verse; the visible label is only a fallback.
+  const marker = /<b class="([^"]*)"(?:\s+id="v(\d{2})(\d{3})(\d{3})[^"]*")?[^>]*>\s*(?:(\d+):)?(\d+)\s*(?:&nbsp;)?\s*<\/b>/g;
+  const isVerseMarker = (cls) => /(^|\s)(verse-num|chapter-num)(\s|$)/.test(cls);
+
   const heads = [];
   const headRe = /<(h[34])[^>]*>([\s\S]*?)<\/\1>/g;
   let h;
@@ -110,21 +143,27 @@ function toVerses(body, allNotes) {
 
   const hits = [];
   let m;
-  while ((m = marker.exec(body))) hits.push({ at: m.index, end: marker.lastIndex, chapter: m[1], number: +m[2] });
+  while ((m = marker.exec(body))) {
+    if (!isVerseMarker(m[1])) continue;
+    hits.push({
+      at: m.index,
+      end: marker.lastIndex,
+      chapter: m[3] ? +m[3] : (m[5] ? +m[5] : undefined),
+      number: m[4] ? +m[4] : +m[6],
+    });
+  }
   if (!hits.length) return [];
 
   return hits.map((hit, i) => {
-    // Stop at the next verse marker OR the next heading, whichever comes
-    // first — otherwise a verse swallows the heading that follows it.
     const nextVerse = i + 1 < hits.length ? hits[i + 1].at : body.length;
     const nextHead = heads.find((x) => x.at >= hit.end && x.at < nextVerse);
     const slice = body.slice(hit.end, nextHead ? nextHead.at : nextVerse);
     const prev = i === 0 ? 0 : hits[i - 1].at;
     const owned = heads.filter((x) => x.at >= prev && x.at < hit.at);
-    const noteIds = [...slice.matchAll(/<sup class="footnote">[\s\S]*?>(\d+)<\/a><\/sup>/g)].map((x) => x[1]);
+    const noteIds = [...slice.matchAll(/<sup class="footnote">[\s\S]*?>(\d+)<\/a>\s*<\/sup>/g)].map((x) => x[1]);
     return {
       number: hit.number,
-      chapter: hit.chapter ? +hit.chapter : undefined,
+      chapter: hit.chapter,
       text: stripTags(slice),
       heading: owned.find((x) => x.level === 'h3')?.text ?? null,
       subheading: owned.find((x) => x.level === 'h4')?.text ?? null,
@@ -157,10 +196,22 @@ async function passage(request, env, ctx) {
   if (!env.ESV_API_KEY) return json({ error: 'Worker is missing ESV_API_KEY' }, 500);
 
   const q = normalise(raw);
-  const cacheKey = new Request(`https://nk.cache/passage?q=${encodeURIComponent(q)}`, { method: 'GET' });
+  // Cached passages are keyed by parser version: responses are immutable for a
+  // year, so a parser fix has to orphan every entry cut by the old one or the
+  // bug outlives the deploy that fixed it. Bump this with any change to
+  // toVerses / extractFootnotes.
+  const cacheKey = new Request(
+    `https://nk.cache/passage?v=${PARSER_VERSION}&q=${encodeURIComponent(q)}`, { method: 'GET' });
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
-  if (hit) return new Response(hit.body, { status: 200, headers: { ...Object.fromEntries(hit.headers), ...CORS, 'X-Cache': 'HIT' } });
+  if (hit) {
+    // Headers, not an object literal: 'x-cache' and 'X-Cache' are distinct
+    // object keys but the same header, and the literal emitted both.
+    const h = new Headers(hit.headers);
+    for (const [k, v] of Object.entries(CORS)) h.set(k, v);
+    h.set('X-Cache', 'HIT');
+    return new Response(hit.body, { status: 200, headers: h });
+  }
 
   const target = new URL(ESV_ENDPOINT);
   target.searchParams.set('q', q);

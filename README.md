@@ -4,11 +4,16 @@ A whole-Bible reader built on the Narrowkind reading plans, where the unit of
 reading is a **passage inside a movement**, not a day inside a countdown.
 Scripture is fetched, never generated.
 
+**Live:** <https://narrowkind-scripture.merrickjo.workers.dev> — the reader and
+the Scripture proxy are one deployment on one origin, installable as a PWA and
+readable offline.
+
 ```
-app/      the reader — index.html + plan.json + books.json
-worker/   Cloudflare Worker — ESV API v3 → clean JSON, plus Notion write-back
+app/      the reader — index.html + plan.json + books.json + PWA shell
+worker/   Cloudflare Worker — ESV API v3 → clean JSON, serves app/, Notion write-back
 src/      the plan generator (USFM parsing, segmentation, verification)
 data/     plan extracts from Notion + the build entry point
+tools/    artifact-copy.mjs — derives the Artifact-preview variant from app/
 ```
 
 ## The plans
@@ -99,11 +104,22 @@ cosmetic:
   nothing you write can be mistaken for the text.
 - **Square corners, 1px ink rules, ≥44px hit targets**, and text labels rather
   than icons.
+- **Poetry set as poetry.** ESV marks each poetic line both as a block and with
+  a trailing `<br>`; left alone that double-spaces every psalm and doubles the
+  page count on a panel that turns slowly. The redundant break is suppressed,
+  stanzas get a half-line rule of space, and every line carries a hanging
+  indent so a wrap can never be mistaken for a new line.
 
 Reader controls live behind the page counter: font size, leading, invert, and a
 **clear ghosting** flash that resets the panel. Turning to a reading prefetches
 the next one, so a page turn rarely waits on the network; up to 220 passages are
 held on the device.
+
+**Offline.** `app/sw.js` caches the shell and both plan files on first visit and
+caches every passage it fetches — a fetched passage never changes. Opened from
+the live URL the app installs to the home screen (`manifest.json`, monochrome
+`icon.svg`) and then reads with no connection at all, which is the normal state
+of a reading device. Bump `SHELL_V` in `sw.js` to force the shell to re-download.
 
 ### Two flows
 
@@ -112,8 +128,11 @@ held on the device.
 - **Read** — all 66 books by section, then chapters, for reading outside the plan.
 
 Notes are per-reading in `localStorage`, exportable as Markdown, and a plan note
-can be pushed to its Notion row on demand (`POST /note`). The Worker address
-lives in Setup, saved per device; the ESV key never reaches the browser.
+can be pushed to its Notion row on demand (`POST /note`). Served from its own
+Worker the app needs no configuration — the Scripture proxy is the page's own
+origin. Only a copy opened from elsewhere (the Artifact preview, a `file://`
+copy) needs a Worker address typed into Setup. The ESV key never reaches the
+browser in either case.
 
 ## Worker
 
@@ -135,10 +154,19 @@ survive into the reader. Half this plan is Psalms, Prophets and Job;
 verse-per-line destroys them.
 
 ```
+GET  /                          the reader (static assets from app/)
 GET  /passage?q=Romans+1:1-17   clean JSON, cached at the edge for a year
 POST /note                      { plan, day, text } → appends to that row's Notes in Notion
-GET  /health
+GET  /health                    { ok, esv, notion }
 ```
+
+Assets win for any path that exists in `app/`; everything else falls through to
+the Worker script. Because passage responses are immutable for a year, the edge
+cache key carries `PARSER_VERSION` — **bump it with any change to `toVerses` or
+`extractFootnotes`**, or a parser fix will be invisible behind entries the old
+parser cut. That is not hypothetical: the first deploy of this Worker shipped a
+stale parser that collapsed Psalm 23 to a single verse, and the fixed deploy
+kept serving the broken response from cache until the key changed.
 
 ### Deploy
 ```bash
@@ -147,8 +175,18 @@ npm install
 printf '%s' "$ESV_API_KEY"  | npx wrangler secret put ESV_API_KEY     # required
 printf '%s' "$NOTION_TOKEN" | npx wrangler secret put NOTION_TOKEN    # optional, for /note
 printf '%s' "$APP_KEY"      | npx wrangler secret put APP_KEY         # optional, gates the Worker
-npx wrangler deploy
+npm test                                                              # parser regression
+npx wrangler deploy                                                   # uploads app/ with it
 ```
+
+Deployed as `narrowkind-scripture` on account `Merrickjo87@gmail.com's Account`.
+`ESV_API_KEY` is set; `NOTION_TOKEN` and `APP_KEY` are not — `/note` returns a
+clear error until the Notion token is added, and the Worker is currently open to
+anyone who knows the URL. Set `APP_KEY` if that stops being acceptable; the app
+sends it as `X-App-Key` when one is saved in Setup.
+
+Secrets live only in Cloudflare. Nothing in this repo holds a key, and
+`wrangler.toml` documents the three `secret put` lines as comments only.
 
 Terminal readings over-request by ten verses (`Romans 16:17-16:35`) and let the
 ESV API clamp to its own canonical range — WEB and ESV disagree on where the
@@ -161,9 +199,26 @@ curl -sSL -o web.zip https://ebible.org/Scriptures/eng-web_usfm.zip
 unzip -q web.zip -d /tmp/webusfm
 node data/build-plan.mjs     # → app/plan.json
 node src/verify.mjs          # whole-Bible coverage gate
-node worker/test/parse.test.mjs
+node --test worker/test/*.mjs
+node tools/artifact-copy.mjs # → build/artifact, for the Artifact preview
 ```
 
 `verify.mjs` fails the build on unparseable references, duplicate `seq` or
 `day`, unknown movements, readings with no ESV query, and any coverage gap not
 on the known-omissions list.
+
+## Verification log
+
+- Plan: 66/66 books, 31,087 / 31,103 verses, no duplicate `seq` or `day`.
+- Segmentation: 95% of the existing NT plan's boundaries fall exactly on a
+  generated paragraph start, 98% within one verse.
+- Notion: every OT book's row count checked against `plan.json` individually,
+  not just on totals. All 39 match.
+- Worker, live: a stratified sample of 49 readings drawn across both plans
+  (every 42nd) returned with **zero errors and the exact verse count
+  `plan.json` expects for all 49**. Poetry, prose, prophets, cross-chapter
+  ranges, single-chapter books and Psalm 119's acrostic were each checked by
+  hand.
+- Reader, headless at 824×1200 (panel) and 390×844 (phone): pagination pitch
+  equals one stage width at both sizes, no horizontal overflow, arrow-key page
+  turns translate by exactly one stage.
