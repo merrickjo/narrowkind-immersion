@@ -1,0 +1,648 @@
+<title>Narrowkind Immersion</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* ══ E-INK FIRST ═══════════════════════════════════════════════════════
+   Built for a B&W E Ink Carta panel (Bigme HiBreak Pro).
+   Rules this stylesheet obeys without exception:
+     · two inks only — pure black, pure paper. No greys: on Carta a mid
+       grey dithers and reads as smudge, so hierarchy is carried by size,
+       weight, caps and rules instead of by colour.
+     · no animation, no transition, no opacity fade. Every one of those
+       leaves ghosting behind on an e-ink refresh.
+     · no scrolling in the reader. Pagination only.
+     · nothing position:fixed over scrollable content, for the same reason.
+     · hairlines are 1px solid ink, corners are square — antialiased
+       curves and shadows are exactly what a 16-level panel cannot draw.
+   ═════════════════════════════════════════════════════════════════════ */
+:root{
+  --paper:#FFFFFF; --ink:#000000;
+  --serif:'Literata',Charter,'Noto Serif',Georgia,serif;
+  --sans:'Atkinson Hyperlegible','Noto Sans',system-ui,sans-serif;
+  --size:19px; --lead:1.62; --pad:20px;
+}
+:root[data-invert="1"]{ --paper:#000000; --ink:#FFFFFF; }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.45;
+     -webkit-font-smoothing:none;font-smooth:never;text-rendering:optimizeLegibility}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;text-align:left}
+a{color:inherit}
+*,*::before,*::after{transition:none!important;animation:none!important}
+:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+
+/* ── frame: three rows, never scrolls ───────────────────────────────── */
+.frame{display:grid;grid-template-rows:auto 1fr auto;height:100dvh;height:100vh;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:14px;padding:11px var(--pad);border-bottom:1px solid var(--ink);
+        min-height:46px;flex:none}
+.topbar .t{font-family:var(--sans);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+           white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .r{margin-left:auto;display:flex;gap:2px;flex:none}
+.navlink{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;padding:8px 9px;min-height:44px;
+         display:flex;align-items:center}
+.navlink[aria-current="true"]{background:var(--ink);color:var(--paper)}
+.chip{border:1px solid var(--ink);padding:7px 11px;font-size:12px;font-weight:700;letter-spacing:.07em;
+      text-transform:uppercase;min-height:40px;display:inline-flex;align-items:center}
+.chip:active,.navlink:active{background:var(--ink);color:var(--paper)}
+
+.body{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.body.nopad{overflow:hidden}
+.inner{padding:var(--pad) var(--pad) 34px;max-width:720px;margin-inline:auto}
+
+.botbar{display:flex;align-items:stretch;border-top:1px solid var(--ink);flex:none;min-height:56px}
+.botbar button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+               font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+               border-right:1px solid var(--ink);padding:0 6px}
+.botbar button:last-child{border-right:none}
+.botbar button:active{background:var(--ink);color:var(--paper)}
+.botbar .wide{flex:1.5}
+.botbar [disabled]{opacity:1;color:var(--paper);background:var(--paper);
+                   text-decoration:none;visibility:hidden}
+
+/* ── type scale ─────────────────────────────────────────────────────── */
+.kicker{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+h1{font-family:var(--serif);font-weight:600;font-size:27px;line-height:1.18;margin:5px 0 0;text-wrap:balance}
+h2{font-family:var(--serif);font-weight:600;font-size:18px;margin:0;line-height:1.25}
+.sub{font-size:13px;margin-top:7px}
+.rule{height:1px;background:var(--ink);margin:18px 0}
+.rule.thick{height:3px}
+
+/* ── lists: big square rows, ink-bordered ───────────────────────────── */
+.rows{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--ink);margin-top:16px}
+.row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;
+     padding:14px 4px;border-bottom:1px solid var(--ink);min-height:56px;width:100%}
+.row:active{background:var(--ink);color:var(--paper)}
+.row .lead{font-family:var(--serif);font-weight:600;font-size:17px;min-width:26px}
+.row .ttl{font-family:var(--serif);font-size:17px;line-height:1.25}
+.row .meta{font-size:12px;margin-top:4px;letter-spacing:.02em}
+.row .tail{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-align:right;white-space:nowrap}
+.row[data-review="1"] .ttl{font-style:italic}
+.flag{font-family:var(--serif);font-weight:600;font-size:15px}
+
+.sect{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+      margin:24px 0 0;padding-bottom:6px;border-bottom:3px solid var(--ink)}
+.grid{display:grid;gap:0;border-left:1px solid var(--ink);border-top:1px solid var(--ink);margin-top:0}
+.grid.books{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+.grid.chaps{grid-template-columns:repeat(auto-fill,minmax(54px,1fr))}
+.cell{border-right:1px solid var(--ink);border-bottom:1px solid var(--ink);
+      min-height:52px;display:flex;flex-direction:column;justify-content:center;padding:7px 9px}
+.cell:active{background:var(--ink);color:var(--paper)}
+.cell .cn{font-family:var(--serif);font-size:15px;line-height:1.15}
+.cell .cc{font-size:10px;letter-spacing:.06em;margin-top:2px}
+.grid.chaps .cell{align-items:center;font-family:var(--serif);font-size:16px;font-variant-numeric:tabular-nums}
+
+/* ── the paginated page ─────────────────────────────────────────────── */
+#stage{position:relative;overflow:hidden;height:100%}
+#flow{column-fill:auto;padding-top:calc(var(--pad) - 4px);
+      font-family:var(--serif);font-size:var(--size);line-height:var(--lead);font-weight:400;
+      hyphens:auto;-webkit-hyphens:auto;text-align:left}
+#flow p{margin:0 0 .85em;orphans:2;widows:2}
+#flow h3{font-family:var(--sans);font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+         margin:1.5em 0 .6em;line-height:1.35;break-after:avoid}
+#flow h4{font-family:var(--sans);font-size:12px;font-weight:400;font-style:normal;letter-spacing:.03em;
+         margin:0 0 .9em;break-after:avoid}
+#flow .verse-num,#flow .chapter-num{font-family:var(--sans);font-weight:700;font-size:.56em;
+         vertical-align:.5em;line-height:0;margin-right:.12em;letter-spacing:0;font-variant-numeric:tabular-nums}
+#flow .chapter-num{font-size:.72em;vertical-align:.34em}
+#flow .footnote{display:none}          /* footnote markers add speckle; bodies live on the Notes page */
+#flow .line{display:block}
+#flow .indent{padding-left:1.3em}
+#flow .begin-line-group,#flow .end-line-group{display:none}
+#flow .divine-name,#flow .small-caps{font-variant-caps:small-caps;letter-spacing:.04em}
+#flow em,#flow i{font-style:italic}
+#flow .woc{font-style:normal}
+
+.pageno{font-variant-numeric:tabular-nums}
+
+/* ── panels ─────────────────────────────────────────────────────────── */
+.panel{border:1px solid var(--ink);padding:15px 16px;margin-top:18px}
+.panel h2{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:9px}
+.panel p{margin:0 0 .7em;font-size:14px;line-height:1.5}
+.panel p:last-child{margin-bottom:0}
+.panel code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;border:1px solid var(--ink);padding:0 4px}
+.quote{font-family:var(--serif);font-size:16px;font-style:italic;line-height:1.45;margin:0 0 14px}
+textarea{width:100%;min-height:190px;padding:13px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);
+         font-family:var(--serif);font-size:17px;line-height:1.55;resize:none;border-radius:0}
+textarea::placeholder{color:var(--ink);opacity:.45}
+.field{display:block;margin-top:15px}
+.field span{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+.field input{width:100%;padding:12px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);
+             font-family:var(--sans);font-size:15px;border-radius:0}
+.btnrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.btn{border:1px solid var(--ink);padding:11px 15px;font-size:12px;font-weight:700;letter-spacing:.08em;
+     text-transform:uppercase;min-height:46px;display:inline-flex;align-items:center}
+.btn.fill{background:var(--ink);color:var(--paper)}
+.btn:active{background:var(--ink);color:var(--paper)}
+.btn.fill:active{background:var(--paper);color:var(--ink)}
+.said{font-size:13px}
+.stepper{display:flex;border:1px solid var(--ink)}
+.stepper button{width:52px;height:46px;display:flex;align-items:center;justify-content:center;
+                font-family:var(--serif);font-size:17px;font-weight:600;border-right:1px solid var(--ink)}
+.stepper button:last-child{border-right:none}
+.stepper .val{width:66px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+              border-right:1px solid var(--ink);font-variant-numeric:tabular-nums}
+.cite{font-size:11px;line-height:1.45;border-top:1px solid var(--ink);padding-top:11px;margin-top:22px}
+.tapzone{position:absolute;top:0;bottom:0;width:34%}
+.tapzone.l{left:0}.tapzone.r{right:0}
+.hidden{display:none!important}
+</style>
+
+<div class="frame">
+  <div class="topbar" id="topbar"></div>
+  <div class="body" id="body"><div class="inner" id="inner"></div></div>
+  <div class="botbar hidden" id="botbar"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ── storage ─────────────────────────────────────────────────────────── */
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k)    { try { localStorage.removeItem(k); } catch {} },
+};
+/* When the app is served from its own Worker (the normal case) the Scripture
+   proxy is the page's own origin, so there is nothing to configure.  Only a
+   copy opened from elsewhere — the Artifact preview, a file:// copy — needs a
+   Worker URL typed into Setup. */
+const SAME_ORIGIN = (() => {
+  try {
+    const o = location.origin;
+    return /^https?:$/.test(location.protocol) && !/(^|\.)claude\.ai$|(^|\.)anthropic\.com$|usercontent/.test(location.hostname) ? o : '';
+  } catch { return ''; }
+})();
+const cfg = () => {
+  const c = Object.assign({ worker: '', key: '', size: 19, lead: 1.62, invert: 0 }, LS.get('nk:cfg', {}));
+  if (!c.worker) c.worker = SAME_ORIGIN;
+  return c;
+};
+const setCfg = (patch) => { const c = Object.assign(cfg(), patch); LS.set('nk:cfg', c); applyCfg(); return c; };
+function applyCfg() {
+  const c = cfg();
+  document.documentElement.style.setProperty('--size', c.size + 'px');
+  document.documentElement.style.setProperty('--lead', c.lead);
+  document.documentElement.dataset.invert = c.invert ? '1' : '0';
+}
+
+const nkey  = (e) => e.planId ? `nk:note:${e.planId}:${e.seq}` : `nk:note:ref:${e.ref}`;
+const getNote = (e) => LS.get(nkey(e), null);
+const putNote = (e, t) => t.trim() ? LS.set(nkey(e), { text: t, at: Date.now(), ref: e.passage || e.ref }) : LS.del(nkey(e));
+const allNotes = () => Object.keys(localStorage).filter(k => k.startsWith('nk:note:'));
+
+const CACHE_MAX = 220;
+const cacheGet = (r) => LS.get('nk:psg:' + r, null);
+function cachePut(r, d) {
+  const i = LS.get('nk:psgidx', []);
+  if (!i.includes(r)) i.push(r);
+  while (i.length > CACHE_MAX) LS.del('nk:psg:' + i.shift());
+  LS.set('nk:psgidx', i); LS.set('nk:psg:' + r, d);
+}
+
+/* ── data ────────────────────────────────────────────────────────────── */
+let PLAN = null, BOOKS = null, BY = new Map();
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const topbar = $('topbar'), bodyEl = $('body'), inner = $('inner'), botbar = $('botbar');
+
+async function boot() {
+  applyCfg();
+  const [p, b] = await Promise.all([fetch('plan.json').then(r => r.json()), fetch('books.json').then(r => r.json())]);
+  PLAN = p; BOOKS = b;
+  for (const r of b) BY.set(r[0], { code: r[0], name: r[1], short: r[2], group: r[3], chapters: r[4], single: !!r[5], verses: r[6] });
+  for (const pl of PLAN.plans) pl.bySeq = new Map(pl.entries.map(e => [e.seq, e]));
+  addEventListener('hashchange', route);
+  addEventListener('keydown', onKey);
+  route();
+}
+
+/* ── chrome helpers ──────────────────────────────────────────────────── */
+function chrome({ title, back, tabs, bottom }) {
+  topbar.innerHTML =
+    (back ? `<button class="chip" data-go="${esc(back.href)}">${esc(back.label)}</button>` : '') +
+    `<span class="t">${esc(title)}</span>` +
+    (tabs ? `<span class="r">${['plan|Plan', 'read|Read', 'setup|Set'].map(t => {
+      const [id, lbl] = t.split('|');
+      return `<button class="navlink" data-go="${id}" aria-current="${tabs === id}">${lbl}</button>`;
+    }).join('')}</span>` : '');
+  if (bottom) { botbar.innerHTML = bottom; botbar.classList.remove('hidden'); }
+  else { botbar.innerHTML = ''; botbar.classList.add('hidden'); }
+  topbar.querySelectorAll('[data-go]').forEach(b => b.onclick = () => location.hash = '#' + b.dataset.go);
+}
+function page(html, { scroll = true } = {}) {
+  bodyEl.classList.toggle('nopad', !scroll);
+  bodyEl.innerHTML = scroll ? `<div class="inner">${html}</div>` : html;
+  bodyEl.scrollTop = 0;
+  bodyEl.querySelectorAll('[data-go]').forEach(b => b.onclick = () => location.hash = '#' + b.dataset.go);
+}
+
+/* ── router ──────────────────────────────────────────────────────────── */
+function route() {
+  const seg = decodeURIComponent(location.hash.slice(1) || 'plan').split('/');
+  switch (seg[0]) {
+    case 'setup': return viewSetup();
+    case 'read':  return seg[1] ? viewChapters(seg[1]) : viewBooks();
+    case 'r':     return viewReader({ kind: 'chapter', code: seg[1], ch: +seg[2] });
+    case 'p':     return viewReader({ kind: 'plan', planId: seg[1], seq: +seg[2] });
+    case 'note':  return viewNote(seg.slice(1));
+    case 'plan':
+    default:
+      if (seg[1] && seg[2]) return viewMovement(seg[1], seg[2]);
+      if (seg[1]) return viewMovements(seg[1]);
+      return viewPlans();
+  }
+}
+
+/* ── plan home ───────────────────────────────────────────────────────── */
+function viewPlans() {
+  chrome({ title: 'Narrowkind', tabs: 'plan' });
+  page(PLAN.plans.map(pl => {
+    const pos = LS.get('nk:pos:' + pl.id, null);
+    const here = pos ? pl.bySeq.get(pos) : null;
+    const readings = pl.entries.filter(e => e.type === 'reading').length;
+    return `<button class="row" data-go="plan/${pl.id}">
+      <span class="lead">${pl.id.toUpperCase()}</span>
+      <span><span class="ttl">${esc(pl.name)}</span>
+        <div class="meta">${pl.movements.length} movements · ${readings.toLocaleString()} readings</div>
+        ${here ? `<div class="meta"><b>Last open — ${esc(here.passage)}</b></div>` : ''}</span>
+      <span class="tail">${here ? 'Resume' : 'Begin'}</span>
+    </button>`;
+  }).join('').replace(/^/, '<div class="rows">') + '</div>' +
+  `<div class="panel"><h2>Why this reads the way it does</h2>
+    <p>Passages are grouped by movement, not by date. Where you stopped is a bookmark — there is nothing here keeping a streak.</p>
+    <p>Reading units are whole paragraphs, merged and never split.</p></div>`);
+}
+
+/* ── movements ───────────────────────────────────────────────────────── */
+function viewMovements(planId) {
+  const pl = PLAN.plans.find(p => p.id === planId);
+  if (!pl) return viewPlans();
+  const pos = LS.get('nk:pos:' + pl.id, null);
+  chrome({ title: pl.name, back: { href: 'plan', label: 'Plans' }, tabs: 'plan' });
+  page('<div class="rows">' + pl.movements.map(m => {
+    const es = pl.entries.filter(e => e.movement === m.id);
+    if (!es.length) return '';
+    const here = pos && es.some(e => e.seq === pos);
+    return `<button class="row" data-go="plan/${pl.id}/${m.id}">
+      <span class="lead">${m.id > 6 ? '—' : m.id}</span>
+      <span><span class="ttl">${esc(m.title)}</span>
+        <div class="meta">${esc(m.strands.join(' · '))}</div></span>
+      <span class="tail">${es.filter(e => e.type === 'reading').length}${here ? '<br>HERE' : ''}</span>
+    </button>`;
+  }).join('') + '</div>');
+}
+
+/* ── one movement ────────────────────────────────────────────────────── */
+function viewMovement(planId, movId) {
+  const pl = PLAN.plans.find(p => p.id === planId);
+  const m = pl && pl.movements.find(x => String(x.id) === String(movId));
+  if (!m) return viewPlans();
+  const pos = LS.get('nk:pos:' + pl.id, null);
+  const es = pl.entries.filter(e => e.movement === m.id);
+  chrome({ title: m.title, back: { href: 'plan/' + pl.id, label: pl.id.toUpperCase() }, tabs: 'plan' });
+
+  const weeks = new Map();
+  for (const e of es) { const w = e.week ?? 0; (weeks.get(w) || weeks.set(w, []).get(w)).push(e); }
+  page((m.note ? `<p class="quote">${esc(m.note)}</p>` : '') +
+    [...weeks.entries()].map(([w, list]) => `
+      <div class="sect">Week ${w}</div>
+      <div class="rows" style="border-top:none;margin-top:0">
+      ${list.map(e => `<button class="row" data-review="${e.type === 'review' ? 1 : 0}" data-go="p/${pl.id}/${e.seq}">
+        <span class="lead">${getNote({ planId: pl.id, seq: e.seq, ref: e.ref }) ? '✒' : ''}${e.seq === pos ? '▮' : ''}</span>
+        <span><span class="ttl">${esc(e.passage)}</span>
+          <div class="meta">${esc(e.strand || e.book || 'review')}</div></span>
+        <span class="tail"></span></button>`).join('')}
+      </div>`).join(''));
+}
+
+/* ── books & chapters ────────────────────────────────────────────────── */
+function viewBooks() {
+  chrome({ title: 'Whole Bible', tabs: 'read' });
+  const groups = [];
+  let cur = null;
+  for (const r of BOOKS) { const b = BY.get(r[0]); if (b.group !== cur) { cur = b.group; groups.push({ name: cur, list: [] }); } groups[groups.length - 1].list.push(b); }
+  const last = LS.get('nk:lastchapter', null);
+  page((last ? `<button class="row" data-go="r/${last.code}/${last.ch}" style="border-top:1px solid var(--ink)">
+      <span class="lead">▮</span><span><span class="ttl">${esc(BY.get(last.code).name)} ${last.ch}</span>
+      <div class="meta">Where you were last</div></span><span class="tail">Open</span></button>` : '') +
+    groups.map(g => `<div class="sect">${esc(g.name)}</div>
+      <div class="grid books">${g.list.map(b => `<button class="cell" data-go="read/${b.code}">
+        <span class="cn">${esc(b.name)}</span>
+        <span class="cc">${b.single ? b.verses[0] + ' v' : b.chapters + ' ch'}</span></button>`).join('')}</div>`).join(''));
+}
+function viewChapters(code) {
+  const b = BY.get(code);
+  if (!b) return viewBooks();
+  if (b.single) return location.replace('#r/' + code + '/1');
+  chrome({ title: b.name, back: { href: 'read', label: 'Books' }, tabs: 'read' });
+  page(`<div class="sect">${esc(b.group)} · ${b.chapters} chapters</div>
+    <div class="grid chaps">${Array.from({ length: b.chapters }, (_, i) =>
+      `<button class="cell" data-go="r/${code}/${i + 1}">${i + 1}</button>`).join('')}</div>`);
+}
+
+/* ── ESV over the Worker ─────────────────────────────────────────────── */
+const ready = () => !!cfg().worker;
+async function fetchPassage(ref) {
+  const hit = cacheGet(ref);
+  if (hit) return hit;
+  const c = cfg(), base = c.worker.replace(/\/+$/, '');
+  const res = await fetch(`${base}/passage?q=${encodeURIComponent(ref)}`, { headers: c.key ? { 'X-App-Key': c.key } : {} });
+  const d = await res.json().catch(() => ({ error: 'The Worker sent something that is not JSON.' }));
+  if (!res.ok) throw new Error(d.error === 'Reference not found' ? `The ESV API does not recognise “${ref}”.` : (d.error || 'Worker error ' + res.status));
+  cachePut(ref, d);
+  return d;
+}
+const prefetch = (ref) => { if (ref && !cacheGet(ref)) fetchPassage(ref).catch(() => {}); };
+
+/* ── the reader: paginated, never scrolls ────────────────────────────── */
+let PG = { page: 0, pages: 1, ctx: null };
+
+function neighbours(ctx) {
+  if (ctx.kind === 'plan') {
+    const pl = PLAN.plans.find(p => p.id === ctx.planId);
+    const prev = pl.bySeq.get(ctx.seq - 1), next = pl.bySeq.get(ctx.seq + 1);
+    return { prev: prev && `p/${ctx.planId}/${prev.seq}`, next: next && `p/${ctx.planId}/${next.seq}`,
+             prevRef: prev && prev.ref, nextRef: next && next.ref };
+  }
+  const b = BY.get(ctx.code);
+  return { prev: ctx.ch > 1 ? `r/${ctx.code}/${ctx.ch - 1}` : null,
+           next: ctx.ch < b.chapters ? `r/${ctx.code}/${ctx.ch + 1}` : null,
+           nextRef: ctx.ch < b.chapters ? `${b.name} ${ctx.ch + 1}` : null };
+}
+
+function viewReader(ctx) {
+  let title, backTo, backLbl, ref, entry, isReview = false, sub = '';
+  if (ctx.kind === 'plan') {
+    const pl = PLAN.plans.find(p => p.id === ctx.planId);
+    const e = pl && pl.bySeq.get(ctx.seq);
+    if (!e) return viewPlans();
+    LS.set('nk:pos:' + pl.id, ctx.seq);
+    const m = pl.movements.find(x => x.id === e.movement);
+    const readings = pl.entries.filter(x => x.type === 'reading');
+    const nth = readings.indexOf(e) + 1;
+    title = e.passage; ref = e.ref; isReview = e.type === 'review';
+    backTo = `plan/${ctx.planId}/${e.movement}`; backLbl = 'Back';
+    sub = `${m ? m.title : ''} · week ${e.week}${nth > 0 ? ` · ${nth.toLocaleString()} of ${readings.length.toLocaleString()}` : ''}`;
+    entry = { planId: ctx.planId, seq: ctx.seq, ref: e.ref, passage: e.passage, day: e.day, notion: e.notion, movement: e.movement, book: e.book };
+    ctx.entry = e;
+  } else {
+    const b = BY.get(ctx.code);
+    if (!b || !ctx.ch) return viewBooks();
+    LS.set('nk:lastchapter', { code: ctx.code, ch: ctx.ch });
+    title = b.single ? b.name : `${b.name} ${ctx.ch}`;
+    ref = b.single ? `${b.name} 1-${b.verses[0]}` : `${b.name} ${ctx.ch}`;
+    backTo = b.single ? 'read' : 'read/' + ctx.code; backLbl = 'Back';
+    sub = b.single ? `${b.verses[0]} verses` : `chapter ${ctx.ch} of ${b.chapters}`;
+    entry = { ref, passage: title };
+  }
+  PG.ctx = Object.assign({}, ctx, { ref, entry, title });
+
+  const nb = neighbours(ctx);
+  chrome({
+    title,
+    back: { href: backTo, label: backLbl },
+    bottom: `<button id="b-prev">‹ Prev</button>
+             <button class="wide" id="b-pos"><span class="pageno" id="pgno">—</span></button>
+             <button id="b-note">Note</button>
+             <button id="b-next">Next ›</button>`,
+  });
+
+  if (isReview) return renderReview(ctx, entry, sub);
+  if (!ready()) {
+    page(`<div class="panel"><h2>Connect the Worker</h2>
+      <p>Scripture is fetched from the ESV API through your Cloudflare Worker — it is never generated here.</p>
+      <p>Add the Worker address under <b>Set</b>, and this device will remember it.</p>
+      <div class="btnrow"><button class="btn fill" data-go="setup">Open setup</button></div></div>`);
+    wireBottom(nb, false);
+    return;
+  }
+
+  page(`<div id="stage"><div id="flow"><p style="font-family:var(--sans);font-size:13px">Loading ${esc(title)}…</p></div>
+        <button class="tapzone l" id="tz-l" aria-label="Previous page"></button>
+        <button class="tapzone r" id="tz-r" aria-label="Next page"></button></div>`, { scroll: false });
+  wireBottom(nb, true);
+
+  fetchPassage(ref).then(d => {
+    const flow = $('flow');
+    if (!flow || PG.ctx.ref !== ref) return;
+    // No display heading here — the top bar already carries the reference,
+    // and on a phone-shaped panel a second one costs a third of page one.
+    flow.innerHTML = `<div class="kicker" style="margin-bottom:1.1em">${esc(sub)}</div>
+      ${d.html}
+      <div class="cite">${esc(d.copyright)}</div>`;
+    const canon = d.passage && d.passage.reference;
+    if (canon) { const t = topbar.querySelector('.t'); if (t) t.textContent = canon; }
+    paginate();
+    prefetch(nb.nextRef); prefetch(nb.prevRef);
+  }).catch(err => {
+    const flow = $('flow');
+    if (flow) flow.innerHTML = `<div class="panel" style="margin:0"><h2>Could not load this passage</h2><p>${esc(err.message)}</p></div>`;
+    setPageNo(1, 1);
+  });
+}
+
+function renderReview(ctx, entry, sub) {
+  const pl = PLAN.plans.find(p => p.id === ctx.planId);
+  const e = ctx.entry;
+  const scope = e.book ? pl.entries.filter(x => x.book === e.book && x.type === 'reading')
+                       : pl.entries.filter(x => x.movement === e.movement && x.type === 'reading');
+  const kept = scope.filter(x => getNote({ planId: pl.id, seq: x.seq, ref: x.ref }));
+  page(`<div class="kicker">${esc(sub)}</div><h1>${esc(e.passage)}</h1>
+    <div class="panel"><h2>A review day</h2>
+      <p>Nothing new to read. This is for going back over ${esc(e.book || 'the movement')} — ${scope.length} readings — and over what you wrote along the way.</p></div>
+    ${kept.length ? `<div class="sect">Your notes here — ${kept.length}</div><div class="rows" style="border-top:none;margin-top:0">
+      ${kept.map(x => { const n = getNote({ planId: pl.id, seq: x.seq, ref: x.ref });
+        return `<button class="row" data-go="p/${pl.id}/${x.seq}"><span class="lead">✒</span>
+          <span><span class="ttl">${esc(x.passage)}</span><div class="meta">${esc((n.text || '').slice(0, 90))}</div></span>
+          <span class="tail"></span></button>`; }).join('')}</div>`
+      : '<div class="panel"><p>No notes saved in this stretch yet.</p></div>'}`);
+  wireBottom(neighbours(ctx), false);
+}
+
+function wireBottom(nb, paged) {
+  const prev = $('b-prev'), next = $('b-next'), pos = $('b-pos'), note = $('b-note');
+  if (!prev) return;
+  note.onclick = () => location.hash = '#note/' + (PG.ctx.kind === 'plan' ? `p/${PG.ctx.planId}/${PG.ctx.seq}` : `r/${PG.ctx.code}/${PG.ctx.ch}`);
+  pos.onclick = openOptions;
+  prev.onclick = () => paged && PG.page > 0 ? turn(-1) : (nb.prev ? location.hash = '#' + nb.prev : null);
+  next.onclick = () => paged && PG.page < PG.pages - 1 ? turn(1) : (nb.next ? location.hash = '#' + nb.next : null);
+  if (!nb.prev && !paged) prev.disabled = true;
+  if (!nb.next && !paged) next.disabled = true;
+  const l = $('tz-l'), r = $('tz-r');
+  if (l) l.onclick = prev.onclick;
+  if (r) r.onclick = next.onclick;
+  if (!paged) setPageNo(0, 0);
+}
+
+function setPageNo(p, n) {
+  const el = $('pgno');
+  if (el) el.textContent = n > 1 ? `${p + 1} / ${n}` : (n === 0 ? 'Options' : 'Options');
+}
+
+function paginate() {
+  const stage = $('stage'), flow = $('flow');
+  if (!stage || !flow) return;
+  // Column pitch must equal exactly one stage width, or the next column
+  // bleeds into view at the right edge. With border-box sizing that means
+  // width = W, side padding = p, column width = W - 2p, column gap = 2p:
+  //   pitch = (W - 2p) + 2p = W
+  const W = stage.clientWidth;
+  const p = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--pad')) || 20;
+  flow.style.width = W + 'px';
+  flow.style.paddingLeft = p + 'px';
+  flow.style.paddingRight = p + 'px';
+  flow.style.columnWidth = (W - p * 2) + 'px';
+  flow.style.columnGap = (p * 2) + 'px';
+  flow.style.height = stage.clientHeight + 'px';
+  PG.pages = Math.max(1, Math.round(flow.scrollWidth / W));
+  PG.page = 0;
+  applyPage();
+}
+function applyPage() {
+  const stage = $('stage'), flow = $('flow');
+  if (!stage || !flow) return;
+  flow.style.transform = `translateX(${-PG.page * stage.clientWidth}px)`;
+  setPageNo(PG.page, PG.pages);
+}
+function turn(d) {
+  const n = PG.page + d;
+  if (n < 0 || n >= PG.pages) return;
+  PG.page = n; applyPage();
+}
+function onKey(ev) {
+  if (/^(INPUT|TEXTAREA)$/.test(ev.target.tagName)) return;
+  if (ev.key === 'ArrowRight' || ev.key === ' ' || ev.key === 'PageDown') { ev.preventDefault(); $('b-next') && $('b-next').click(); }
+  if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') { ev.preventDefault(); $('b-prev') && $('b-prev').click(); }
+}
+addEventListener('resize', () => { if ($('flow') && $('flow').children.length > 1) paginate(); });
+
+/* ── options sheet ───────────────────────────────────────────────────── */
+function openOptions() {
+  const c = cfg();
+  const ctx = PG.ctx;
+  chrome({ title: 'Reading options', back: { href: ctx.kind === 'plan' ? `p/${ctx.planId}/${ctx.seq}` : `r/${ctx.code}/${ctx.ch}`, label: 'Done' } });
+  page(`<div class="sect">Type</div>
+    <div class="btnrow" style="margin-top:14px">
+      <div class="stepper"><button id="s-dn">A−</button><span class="val" id="s-val">${c.size}px</span><button id="s-up">A+</button></div>
+      <div class="stepper"><button id="l-dn">↕−</button><span class="val" id="l-val">${c.lead.toFixed(2)}</span><button id="l-up">↕+</button></div>
+    </div>
+    <div class="sect">Panel</div>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn${c.invert ? ' fill' : ''}" id="o-inv">${c.invert ? 'White on black' : 'Black on white'}</button>
+      <button class="btn" id="o-ref">Clear ghosting</button>
+    </div>
+    <div class="panel"><h2>About clearing</h2>
+      <p>E-ink leaves faint traces of what was on screen before. <b>Clear ghosting</b> flashes the page black and back once, which resets the panel.</p></div>
+    <div class="panel"><h2>Offline</h2><p>${LS.get('nk:psgidx', []).length} passages held on this device. Turning to the next reading fetches the one after it, so a page turn rarely waits.</p></div>`);
+
+  const c2 = () => cfg();
+  $('s-up').onclick = () => { const v = Math.min(30, c2().size + 1); setCfg({ size: v }); $('s-val').textContent = v + 'px'; };
+  $('s-dn').onclick = () => { const v = Math.max(14, c2().size - 1); setCfg({ size: v }); $('s-val').textContent = v + 'px'; };
+  $('l-up').onclick = () => { const v = Math.min(2.2, +(c2().lead + .06).toFixed(2)); setCfg({ lead: v }); $('l-val').textContent = v.toFixed(2); };
+  $('l-dn').onclick = () => { const v = Math.max(1.2, +(c2().lead - .06).toFixed(2)); setCfg({ lead: v }); $('l-val').textContent = v.toFixed(2); };
+  $('o-inv').onclick = () => { const v = c2().invert ? 0 : 1; setCfg({ invert: v }); openOptions(); };
+  $('o-ref').onclick = flashRefresh;
+}
+function flashRefresh() {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:#000;z-index:999';
+  document.body.appendChild(d);
+  setTimeout(() => { d.style.background = '#fff'; setTimeout(() => d.remove(), 120); }, 120);
+}
+
+/* ── note page ───────────────────────────────────────────────────────── */
+function viewNote(seg) {
+  let entry, backHref, title;
+  if (seg[0] === 'p') {
+    const pl = PLAN.plans.find(p => p.id === seg[1]); const e = pl && pl.bySeq.get(+seg[2]);
+    if (!e) return viewPlans();
+    entry = { planId: seg[1], seq: +seg[2], ref: e.ref, passage: e.passage, day: e.day, notion: e.notion };
+    backHref = `p/${seg[1]}/${seg[2]}`; title = e.passage;
+  } else {
+    const b = BY.get(seg[1]); if (!b) return viewBooks();
+    title = b.single ? b.name : `${b.name} ${seg[2]}`;
+    entry = { ref: b.single ? `${b.name} 1-${b.verses[0]}` : title, passage: title };
+    backHref = `r/${seg[1]}/${seg[2]}`;
+  }
+  const saved = getNote(entry);
+  const canPush = !!(entry.planId && entry.day != null && entry.notion);
+  chrome({ title: 'Note · ' + title, back: { href: backHref, label: 'Back' } });
+  page(`<p class="quote">Read it again. What changed in what you noticed?</p>
+    <textarea id="ta" placeholder="Whatever you saw this time.">${esc(saved ? saved.text : '')}</textarea>
+    <div class="btnrow">
+      <button class="btn fill" id="n-save">Save</button>
+      ${canPush ? '<button class="btn" id="n-push">To Notion</button>' : ''}
+      <span class="said" id="n-said">${saved ? 'Saved ' + new Date(saved.at).toLocaleDateString() : 'Kept on this device.'}</span>
+    </div>`);
+  const ta = $('ta'), said = $('n-said');
+  $('n-save').onclick = () => { putNote(entry, ta.value); said.textContent = ta.value.trim() ? 'Saved.' : 'Cleared.'; };
+  const push = $('n-push');
+  if (push) push.onclick = async () => {
+    const t = ta.value.trim(); if (!t) { said.textContent = 'Nothing to send yet.'; return; }
+    putNote(entry, t); said.textContent = 'Sending…';
+    try {
+      const c = cfg();
+      const r = await fetch(c.worker.replace(/\/+$/, '') + '/note', {
+        method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, c.key ? { 'X-App-Key': c.key } : {}),
+        body: JSON.stringify({ plan: entry.planId, day: entry.day, text: t, passage: entry.passage }) });
+      const d = await r.json().catch(() => ({}));
+      said.textContent = r.ok ? `Added to day ${entry.day} in Notion.` : 'Notion said: ' + (d.error || r.status);
+    } catch { said.textContent = 'Could not reach the Worker.'; }
+  };
+}
+
+/* ── setup ───────────────────────────────────────────────────────────── */
+function viewSetup() {
+  const c = cfg(), n = allNotes().length;
+  chrome({ title: 'Setup', tabs: 'setup' });
+  page(`<div class="sect">Worker</div>
+    <label class="field"><span>Address</span>
+      <input id="i-w" type="url" inputmode="url" spellcheck="false" autocapitalize="off"
+             placeholder="https://narrowkind-scripture.you.workers.dev" value="${esc(c.worker)}"></label>
+    <label class="field"><span>App key — only if the Worker has one</span>
+      <input id="i-k" type="password" spellcheck="false" value="${esc(c.key)}"></label>
+    <div class="btnrow"><button class="btn fill" id="w-save">Save</button>
+      <button class="btn" id="w-test">Test</button><span class="said" id="w-said"></span></div>
+    <div class="panel"><p>The Worker holds your ESV key, so it never reaches this device. Passages are fetched, never generated.</p></div>
+
+    <div class="sect">Notes</div>
+    <div class="panel"><p><b>${n}</b> note${n === 1 ? '' : 's'} on this device. Plan notes can also be pushed to their Notion row from the note itself.</p>
+      <div class="btnrow"><button class="btn" id="n-exp">Copy all as Markdown</button><span class="said" id="n-esaid"></span></div></div>
+
+    <div class="sect">Panel</div>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn${c.invert ? ' fill' : ''}" id="p-inv">${c.invert ? 'White on black' : 'Black on white'}</button>
+      <button class="btn" id="p-ref">Clear ghosting</button></div>
+
+    <div class="sect">The plan</div>
+    <div class="panel">${PLAN.plans.map(p => `<p><b>${esc(p.name)}</b> — ${p.entries.length.toLocaleString()} entries, ${p.movements.length} movements</p>`).join('')}
+      <p>Built for E Ink: two inks, no animation, no scrolling while you read.</p></div>`);
+
+  $('w-save').onclick = () => { setCfg({ worker: $('i-w').value.trim(), key: $('i-k').value.trim() }); $('w-said').textContent = 'Saved.'; };
+  $('w-test').onclick = async () => {
+    const said = $('w-said'), base = $('i-w').value.trim().replace(/\/+$/, '');
+    if (!base) return said.textContent = 'Add the address first.';
+    said.textContent = 'Checking…';
+    try {
+      const k = $('i-k').value.trim();
+      const r = await fetch(base + '/health', { headers: k ? { 'X-App-Key': k } : {} });
+      const d = await r.json();
+      said.textContent = !r.ok ? `Replied ${r.status}.`
+        : d.esv ? 'Connected.' + (d.notion ? ' Notion too.' : ' No Notion token.') : 'Reached it, but no ESV key is set.';
+    } catch { said.textContent = 'Could not reach that address.'; }
+  };
+  $('n-exp').onclick = () => {
+    const rows = allNotes().map(k => LS.get(k, null)).filter(Boolean).sort((a, b) => (a.ref || '').localeCompare(b.ref || ''));
+    const md = ['# Narrowkind Immersion — notes', '', `${rows.length} notes · ${new Date().toISOString().slice(0, 10)}`, '']
+      .concat(rows.flatMap(x => [`## ${x.ref}`, '', x.text, ''])).join('\n');
+    navigator.clipboard?.writeText(md).then(() => $('n-esaid').textContent = `${rows.length} copied.`,
+                                            () => $('n-esaid').textContent = 'Clipboard unavailable here.');
+  };
+  $('p-inv').onclick = () => { setCfg({ invert: cfg().invert ? 0 : 1 }); viewSetup(); };
+  $('p-ref').onclick = flashRefresh;
+}
+
+boot().catch(e => { inner.innerHTML = `<div class="panel"><h2>Could not load the plan</h2><p>${esc(e.message)}</p></div>`; });
+})();
+</script>

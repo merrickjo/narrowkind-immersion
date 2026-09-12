@@ -1,0 +1,5 @@
+121|16|1|V|Genesis Review|Genesis
+221|28|1|V|Exodus Review|Exodus
+285|36|1|V|Leviticus Review|Leviticus
+377|48|1|V|Numbers Review|Numbers
+462|58|1|V|Deuteronomy Review|Deuteronomy

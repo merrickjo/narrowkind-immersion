@@ -1,0 +1,16 @@
+name = "narrowkind-scripture"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# The reader itself is served from this same Worker, so the app and the
+# Scripture proxy share one origin: no CORS, no key in the browser, and one
+# URL to open on an e-ink device.  Assets win for paths that exist in app/
+# (/, /index.html, /plan.json, /books.json); everything else — /passage,
+# /note, /health — falls through to src/index.js.
+[assets]
+directory = "../app"
+
+# Secrets (set with wrangler, never committed):
+#   printf '%s' "$ESV_KEY"    | npx wrangler secret put ESV_API_KEY
+#   printf '%s' "$NOTION_TOK" | npx wrangler secret put NOTION_TOKEN   # optional
+#   printf '%s' "$APP_KEY"    | npx wrangler secret put APP_KEY        # optional

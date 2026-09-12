@@ -1,0 +1,15 @@
+52|7|1|V|Galatians Review|Galatians
+105|13|1|V|Triad 1: Righteousness Revolution Review|Romans,Galatians,Hebrews
+157|20|2|V|1 Peter Review|1 Peter
+210|26|2|V|Triad 2: Apocalyptic Imagination Review|Revelation,1 Peter,Mark
+272|34|3|V|James Review|James
+315|39|3|V|Triad 3: Incarnate Word Review|John,Philippians,Colossians,James
+322|40|90|X|John 18-21|John
+325|40|90|V|Passion Synthesis Review|Mark,John
+326|40|90|V|Full NT Reading Plan Review|
+330|40|90|V|Narrowkind NT Reading Plan Complete|
+377|47|4|V|Ephesians Review|Ephesians
+425|54|4|V|1 Corinthians Review|1 Corinthians
+447|57|4|V|Matthew Review|Matthew
+516|67|5|V|2 Corinthians Review|2 Corinthians
+606|80|5|V|Luke-Acts Review|Luke,Acts
