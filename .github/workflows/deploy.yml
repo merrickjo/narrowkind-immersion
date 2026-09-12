@@ -1,0 +1,87 @@
+name: Deploy
+
+# The Worker serves the reader as well as the ESV proxy, so anything under
+# app/ or worker/ is a deploy. Plan-generator sources are not: they only
+# matter once a rebuild has written a new app/plan.json.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'worker/**'
+      - 'tools/smoke.mjs'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+# One deploy at a time, and never cancel one midway: a half-applied Worker
+# upload is worse than a queued one.
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Plan structure
+        run: node src/check-plan.mjs
+
+      - name: Worker parser tests
+        working-directory: worker
+        run: |
+          npm ci
+          npm test
+
+      - name: Artifact copy still derivable
+        run: node tools/artifact-copy.mjs
+
+  deploy:
+    name: Deploy
+    needs: check
+    runs-on: ubuntu-latest
+    # Until CLOUDFLARE_API_TOKEN exists this job reports plainly that it was
+    # skipped, rather than failing red on every push and training everyone to
+    # ignore the badge.
+    env:
+      CONFIGURED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - name: Report missing credentials
+        if: env.CONFIGURED != 'true'
+        run: |
+          echo "::notice title=Deploy skipped::Set the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to deploy on push. Until then, deploy from the Mac with: cd worker && npx wrangler deploy"
+
+      - uses: actions/checkout@v4
+        if: env.CONFIGURED == 'true'
+      - uses: actions/setup-node@v4
+        if: env.CONFIGURED == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - run: npm ci
+        if: env.CONFIGURED == 'true'
+        working-directory: worker
+
+      - uses: cloudflare/wrangler-action@v3
+        if: env.CONFIGURED == 'true'
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy
+
+      # The unit tests pin the parser against a fixture, which cannot fail
+      # when the wrong build ships or the edge is still serving a response an
+      # older parser cut. Both have happened. This asks the live URL.
+      - name: Smoke test the deployment
+        if: env.CONFIGURED == 'true'
+        run: node tools/smoke.mjs

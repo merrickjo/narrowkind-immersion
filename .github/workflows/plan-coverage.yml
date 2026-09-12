@@ -1,0 +1,39 @@
+name: Plan coverage
+
+# The whole-Bible gate needs the World English Bible's USFM text, which is a
+# download from ebible.org. That is too fragile a dependency to stand between
+# a commit and a deploy, so it runs on its own: when the plan or its generator
+# changes, on demand, and monthly to catch the source moving under us.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/plan.json'
+      - 'data/**'
+      - 'src/**'
+      - '.github/workflows/plan-coverage.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 1 * *'
+
+jobs:
+  coverage:
+    name: Whole-Bible coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - name: Structure
+        run: node src/check-plan.mjs
+
+      - name: Fetch the WEB USFM corpus
+        run: |
+          curl -sSL --retry 3 --retry-delay 5 -o web.zip \
+            https://ebible.org/Scriptures/eng-web_usfm.zip
+          mkdir -p /tmp/webusfm
+          unzip -q web.zip -d /tmp/webusfm
+
+      - name: Verify
+        run: node src/verify.mjs

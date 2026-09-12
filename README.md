@@ -189,6 +189,44 @@ sends it as `X-App-Key` when one is saved in Setup.
 Secrets live only in Cloudflare. Nothing in this repo holds a key, and
 `wrangler.toml` documents the three `secret put` lines as comments only.
 
+### Deploy on push
+
+`.github/workflows/deploy.yml` runs on any push to `main` touching `app/` or
+`worker/`: plan structure → parser tests → `wrangler deploy` → a smoke test
+against the live URL. It needs two repository secrets, and skips with a notice
+rather than failing while either is missing:
+
+```bash
+gh secret set CLOUDFLARE_API_TOKEN      # paste at the prompt; never in a file
+gh secret set CLOUDFLARE_ACCOUNT_ID --body "<account id>"
+```
+
+Mint the token at *Cloudflare → My Profile → API Tokens → Create Token →
+**Edit Cloudflare Workers***, scoped to this account. Deploying from the Mac
+with `npx wrangler deploy` keeps working either way; the two paths do the same
+thing.
+
+`.github/workflows/plan-coverage.yml` runs the whole-Bible gate separately —
+it downloads the WEB corpus from ebible.org, which is too fragile a dependency
+to stand between a commit and a deploy. It fires on plan or generator changes,
+on demand, and monthly.
+
+### The guards
+
+| | what it catches |
+|---|---|
+| `node src/check-plan.mjs` | duplicate `seq`/`day`, an undeclared movement, a reading with no ESV query, a reference naming a chapter that does not exist. Hermetic — checks `plan.json` against `books.json`, no corpus needed. |
+| `cd worker && npm test` | parser regression against a saved fixture, **and** a parser change that did not bump `PARSER_VERSION` |
+| `node tools/smoke.mjs` | the live URL: `/health`, the shell, every asset, and six passages whose verse counts the ESV must return |
+| `node src/verify.mjs` | whole-Bible coverage (needs the corpus) |
+
+The middle one exists because the failure it prevents already happened. The
+parser region of `worker/src/index.js` is fingerprinted in
+`worker/test/parser.fingerprint`; change `extractFootnotes` or `toVerses` and
+the test fails until `PARSER_VERSION` moves and you run `npm run fingerprint`.
+Without it a parser fix ships and changes nothing, because the edge keeps
+serving the year-long immutable response the old parser cut.
+
 Terminal readings over-request by ten verses (`Romans 16:17-16:35`) and let the
 ESV API clamp to its own canonical range — WEB and ESV disagree on where the
 Romans doxology sits, and a book must never lose its last verses to a
@@ -200,7 +238,7 @@ curl -sSL -o web.zip https://ebible.org/Scriptures/eng-web_usfm.zip
 unzip -q web.zip -d /tmp/webusfm
 node data/build-plan.mjs     # → app/plan.json
 node src/verify.mjs          # whole-Bible coverage gate
-node --test worker/test/*.mjs
+node --test worker/test/*.test.mjs
 node tools/artifact-copy.mjs # → build/artifact, for the Artifact preview
 ```
 

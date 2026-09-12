@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node --test test/*.mjs"
+    "test": "node --test test/*.test.mjs",
+    "fingerprint": "node test/write-fingerprint.mjs",
+    "smoke": "node ../tools/smoke.mjs"
   },
-  "devDependencies": { "wrangler": "^4.0.0" }
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
 }
