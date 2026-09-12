@@ -1,5 +1,8 @@
 # Narrowkind Immersion
 
+[![Deploy](https://github.com/merrickjo/narrowkind-immersion/actions/workflows/deploy.yml/badge.svg)](https://github.com/merrickjo/narrowkind-immersion/actions/workflows/deploy.yml)
+[![Plan coverage](https://github.com/merrickjo/narrowkind-immersion/actions/workflows/plan-coverage.yml/badge.svg)](https://github.com/merrickjo/narrowkind-immersion/actions/workflows/plan-coverage.yml)
+
 A whole-Bible reader built on the Narrowkind reading plans, where the unit of
 reading is a **passage inside a movement**, not a day inside a countdown.
 Scripture is fetched, never generated.
