@@ -7,6 +7,7 @@ Scripture is fetched, never generated.
 **Live:** <https://narrowkind-scripture.merrickjo.workers.dev> — the reader and
 the Scripture proxy are one deployment on one origin, installable as a PWA and
 readable offline.
+**Source:** <https://github.com/merrickjo/narrowkind-immersion>
 
 ```
 app/      the reader — index.html + plan.json + books.json + PWA shell
