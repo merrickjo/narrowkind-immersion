@@ -381,9 +381,94 @@ async function fetchPassage(ref) {
   const d = await res.json().catch(() => ({ error: 'The Worker sent something that is not JSON.' }));
   if (!res.ok) throw new Error(d.error === 'Reference not found' ? `The ESV API does not recognise “${ref}”.` : (d.error || 'Worker error ' + res.status));
   cachePut(ref, d);
+  markCachedForever(ref);
   return d;
 }
 const prefetch = (ref) => { if (ref && !cacheGet(ref)) fetchPassage(ref).catch(() => {}); };
+
+/* ── whole-Bible offline download ─────────────────────────────────────
+   sw.js already keeps every fetched passage in Cache Storage forever (a
+   translation never changes, so cache-first with no expiry is correct,
+   not just convenient). What was missing was a way to *ask* for
+   everything, rather than only ever having what you happen to have read.
+   This walks the whole canon — every chapter, plus every plan reading,
+   since a plan ref is sometimes segmented differently from a whole
+   chapter — through the same fetchPassage() call, so anything it
+   touches becomes as permanent as anything read by hand. Progress
+   survives reloads; a dropped connection just pauses and resumes. */
+const BULK_DONE_KEY = 'nk:bulkdone';
+const BULK = { running: false, refs: null, doneSet: null, note: '' };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function bulkDoneSet() {
+  if (!BULK.doneSet) BULK.doneSet = new Set(LS.get(BULK_DONE_KEY, []));
+  return BULK.doneSet;
+}
+let bulkDirty = 0;
+function bulkPersist(force) {
+  bulkDirty++;
+  if (force || bulkDirty >= 5) { LS.set(BULK_DONE_KEY, Array.from(bulkDoneSet())); bulkDirty = 0; }
+}
+function markCachedForever(ref) {
+  const done = bulkDoneSet();
+  if (!done.has(ref)) { done.add(ref); bulkPersist(false); }
+}
+function bulkAllRefs() {
+  if (BULK.refs) return BULK.refs;
+  const refs = [], seen = new Set();
+  const add = (r) => { if (r && !seen.has(r)) { seen.add(r); refs.push(r); } };
+  for (const b of BY.values()) {
+    if (b.single) add(`${b.name} 1-${b.verses[0]}`);
+    else for (let ch = 1; ch <= b.chapters; ch++) add(`${b.name} ${ch}`);
+  }
+  for (const pl of PLAN.plans) for (const e of pl.entries) if (e.type === 'reading') add(e.ref);
+  BULK.refs = refs;
+  return refs;
+}
+function waitOnline() { return new Promise((r) => { const h = () => { removeEventListener('online', h); r(); }; addEventListener('online', h); }); }
+let bulkAbort = false;
+async function runBulk() {
+  if (BULK.running) return;
+  BULK.running = true; bulkAbort = false; BULK.note = '';
+  renderBulkPanel();
+  const refs = bulkAllRefs(), done = bulkDoneSet();
+  for (const ref of refs) {
+    if (bulkAbort) break;
+    if (done.has(ref)) continue;
+    if (!navigator.onLine) { BULK.note = 'Waiting for a connection…'; renderBulkPanel(); await waitOnline(); if (bulkAbort) break; }
+    let ok = false;
+    for (let attempt = 0; attempt < 3 && !ok && !bulkAbort; attempt++) {
+      try { await fetchPassage(ref); ok = true; }
+      catch { await sleep(attempt === 0 ? 1500 : 4000); }
+    }
+    BULK.note = ok ? '' : `Skipped ${ref} for now — will retry next run.`;
+    renderBulkPanel();
+    await sleep(180);
+  }
+  bulkPersist(true);
+  BULK.running = false;
+  BULK.note = bulkAbort ? 'Paused.' : (bulkDoneSet().size >= bulkAllRefs().length ? 'Every passage is on this device — the whole Bible is offline.' : 'Stopped for now — open Setup again to keep going.');
+  renderBulkPanel();
+}
+function pauseBulk() { bulkAbort = true; }
+function bulkPanelHtml() {
+  const total = bulkAllRefs().length, done = bulkDoneSet().size, complete = done >= total;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return `<p>${done.toLocaleString()} / ${total.toLocaleString()} passages held forever on this device (${pct}%)${complete ? ' — the whole Bible is offline.' : '.'}</p>
+    ${BULK.note ? `<p class="meta">${esc(BULK.note)}</p>` : ''}
+    <div class="btnrow">${complete ? '' :
+      `<button class="btn fill" id="bulk-go">${BULK.running ? 'Pause' : (done ? 'Resume download' : 'Download the whole Bible')}</button>`}</div>`;
+}
+function bindBulkPanel() {
+  const go = $('bulk-go');
+  if (go) go.onclick = () => { BULK.running ? pauseBulk() : runBulk(); };
+}
+function renderBulkPanel() {
+  const el = $('bulk-panel');
+  if (!el) return;
+  el.innerHTML = bulkPanelHtml();
+  bindBulkPanel();
+}
 
 /* ── the reader: paginated, never scrolls ────────────────────────────── */
 let PG = { page: 0, pages: 1, ctx: null };
@@ -564,7 +649,7 @@ function openOptions() {
     </div>
     <div class="panel"><h2>About clearing</h2>
       <p>E-ink leaves faint traces of what was on screen before. <b>Clear ghosting</b> flashes the page black and back once, which resets the panel.</p></div>
-    <div class="panel"><h2>Offline</h2><p>${LS.get('nk:psgidx', []).length} passages held on this device. Turning to the next reading fetches the one after it, so a page turn rarely waits.</p></div>`);
+    <div class="panel"><h2>Offline</h2><p>${bulkDoneSet().size.toLocaleString()} passages held forever on this device${BULK.running ? ' — downloading the rest now.' : '.'} Turning to the next reading fetches the one after it, so a page turn rarely waits.</p></div>`);
 
   const c2 = () => cfg();
   $('s-up').onclick = () => { const v = Math.min(30, c2().size + 1); setCfg({ size: v }); $('s-val').textContent = v + 'px'; };
@@ -636,6 +721,10 @@ function viewSetup() {
       <button class="btn" id="w-test">Test</button><span class="said" id="w-said"></span></div>
     <div class="panel"><p>The Worker holds your ESV key, so it never reaches this device. Passages are fetched, never generated.</p></div>
 
+    <div class="sect">Offline copy</div>
+    <div class="panel" id="bulk-panel">${bulkPanelHtml()}</div>
+    <div class="panel"><p>Best started on Wi-Fi. It pauses itself if the connection drops and picks up again where it left off — nothing already cached is re-fetched.</p></div>
+
     <div class="sect">Notes</div>
     <div class="panel"><p><b>${n}</b> note${n === 1 ? '' : 's'} on this device. Plan notes can also be pushed to their Notion row from the note itself.</p>
       <div class="btnrow"><button class="btn" id="n-exp">Copy all as Markdown</button><span class="said" id="n-esaid"></span></div></div>
@@ -662,6 +751,7 @@ function viewSetup() {
         : d.esv ? 'Connected.' + (d.notion ? ' Notion too.' : ' No Notion token.') : 'Reached it, but no ESV key is set.';
     } catch { said.textContent = 'Could not reach that address.'; }
   };
+  bindBulkPanel();
   $('n-exp').onclick = () => {
     const rows = allNotes().map(k => LS.get(k, null)).filter(Boolean).sort((a, b) => (a.ref || '').localeCompare(b.ref || ''));
     const md = ['# Narrowkind Immersion — notes', '', `${rows.length} notes · ${new Date().toISOString().slice(0, 10)}`, '']
