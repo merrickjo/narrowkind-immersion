@@ -24,8 +24,8 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -58,9 +58,9 @@ jobs:
         run: |
           echo "::notice title=Deploy skipped::Set the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to deploy on push. Until then, deploy from the Mac with: cd worker && npx wrangler deploy"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.CONFIGURED == 'true'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: env.CONFIGURED == 'true'
         with:
           node-version: 22
