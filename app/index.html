@@ -35,6 +35,13 @@
 }
 :root[data-invert="1"]{ --paper:#000000; --ink:#FFFFFF; }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* Android's WebView "font boosting" inflates text size in narrow columns it
+   judges hard to read — short multi-line labels (the readings/done counts,
+   Setup's short lines) are exactly what it targets — so a font-size set in
+   CSS was not the font-size actually rendered. That's what read as "the
+   margin is off, everything's truncated" across several screens at once,
+   not just the one grid track. text-size-adjust:100% turns the boost off. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{margin:0;height:100%}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.45;
      -webkit-font-smoothing:none;font-smooth:never;text-rendering:optimizeLegibility}
@@ -44,7 +51,12 @@ a{color:inherit}
 :focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 
 /* ── frame: three rows, never scrolls ───────────────────────────────── */
-.frame{display:grid;grid-template-rows:auto 1fr auto;height:100dvh;height:100vh;overflow:hidden}
+/* Fallback first, dvh last: on a browser that supports dvh this must win,
+   or the frame is sized against the static viewport (100vh, which includes
+   the area the browser's own chrome can occupy) instead of the current
+   visual viewport. Getting this backwards is why the frame could clip or
+   need a scroll gesture to coax the browser's own bottom bar out of the way. */
+.frame{display:grid;grid-template-rows:auto 1fr auto;height:100vh;height:100dvh;overflow:hidden}
 .topbar{display:flex;align-items:center;gap:14px;padding:11px var(--pad);border-bottom:1px solid var(--ink);
         min-height:46px;flex:none}
 .topbar .t{font-family:var(--sans);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
@@ -83,15 +95,38 @@ h2{font-family:var(--serif);font-weight:600;font-size:18px;margin:0;line-height:
 
 /* ── lists: big square rows, ink-bordered ───────────────────────────── */
 .rows{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--ink);margin-top:16px}
-.row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;
+/* auto minmax(0,1fr) auto — plain "1fr" does not shrink below its content's
+   min-content width, so a long enough right-hand label could force the row
+   wider than its container; with .body's overflow-x:hidden that clipped the
+   right edge instead of wrapping. minmax(0,...) lets the middle column give
+   way instead. */
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:13px;
      padding:14px 4px;border-bottom:1px solid var(--ink);min-height:56px;width:100%}
 .row:active{background:var(--ink);color:var(--paper)}
 .row .lead{font-family:var(--serif);font-weight:600;font-size:17px;min-width:26px}
 .row .ttl{font-family:var(--serif);font-size:17px;line-height:1.25}
 .row .meta{font-size:12px;margin-top:4px;letter-spacing:.02em}
-.row .tail{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-align:right;white-space:nowrap}
-.row[data-review="1"] .ttl{font-style:italic}
+.row .tail{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-align:right;line-height:1.5}
 .flag{font-family:var(--serif);font-weight:600;font-size:15px}
+
+/* ── toggle row: a plan reading with its own "done" checkbox ──────────
+   Split from .row because a checkbox and a navigation target can't both be
+   the same <button> — nested interactive elements are invalid HTML and
+   behave unpredictably. tchk toggles nk:done in place (no page re-render,
+   no full e-ink refresh); tgo navigates into the reading, same as a .row. */
+.trow{display:flex;align-items:stretch;border-bottom:1px solid var(--ink);min-height:56px}
+.trow .tchk{flex:none;width:48px;display:flex;align-items:center;justify-content:center;
+            font-family:var(--serif);font-weight:600;font-size:18px;border-right:1px solid var(--ink)}
+.trow .tchk:active{background:var(--ink);color:var(--paper)}
+.trow[data-done="1"] .tchk{background:var(--ink);color:var(--paper)}
+.trow .tgo{flex:1;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:13px;
+           padding:14px 13px;min-width:0}
+.trow .tgo:active{background:var(--ink);color:var(--paper)}
+.trow .tgo .lead{font-family:var(--serif);font-weight:600;font-size:17px;min-width:20px}
+.trow .tgo .ttl{font-family:var(--serif);font-size:17px;line-height:1.25}
+.trow .tgo .meta{font-size:12px;margin-top:4px;letter-spacing:.02em}
+.trow[data-review="1"] .ttl{font-style:italic}
+.trow[data-done="1"] .ttl{text-decoration:line-through}
 
 .sect{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
       margin:24px 0 0;padding-bottom:6px;border-bottom:3px solid var(--ink)}
@@ -134,7 +169,7 @@ h2{font-family:var(--serif);font-weight:600;font-size:18px;margin:0;line-height:
 #flow .end-line-group{display:block;height:.5em}   /* stanza break, no blank line */
 #flow .divine-name,#flow .small-caps{font-variant-caps:small-caps;letter-spacing:.04em}
 #flow em,#flow i{font-style:italic}
-#flow .woc{font-style:normal}
+#flow .woc{font-style:normal;font-variant-caps:small-caps;letter-spacing:.04em}
 
 .pageno{font-variant-numeric:tabular-nums}
 
@@ -144,6 +179,8 @@ h2{font-family:var(--serif);font-weight:600;font-size:18px;margin:0;line-height:
 .panel p{margin:0 0 .7em;font-size:14px;line-height:1.5}
 .panel p:last-child{margin-bottom:0}
 .panel code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;border:1px solid var(--ink);padding:0 4px}
+.panel ul,.panel ol{margin:0 0 .7em 1.3em;padding:0}
+.panel li{font-size:14px;line-height:1.5;margin-bottom:.25em}
 .quote{font-family:var(--serif);font-size:16px;font-style:italic;line-height:1.45;margin:0 0 14px}
 textarea{width:100%;min-height:190px;padding:13px;border:1px solid var(--ink);background:var(--paper);color:var(--ink);
          font-family:var(--serif);font-size:17px;line-height:1.55;resize:none;border-radius:0}
@@ -220,6 +257,40 @@ const nkey  = (e) => e.planId ? `nk:note:${e.planId}:${e.seq}` : `nk:note:ref:${
 const getNote = (e) => LS.get(nkey(e), null);
 const putNote = (e, t) => t.trim() ? LS.set(nkey(e), { text: t, at: Date.now(), ref: e.passage || e.ref }) : LS.del(nkey(e));
 const allNotes = () => Object.keys(localStorage).filter(k => k.startsWith('nk:note:'));
+/* A note's storage key is nk:note:<planId>:<seq> (plan reading) or
+   nk:note:ref:<display ref> (book/chapter browse) -- decode it back into
+   routable pieces for the notes list to link to. */
+function parseNoteKey(key) {
+  const rest = key.slice('nk:note:'.length);
+  const i = rest.indexOf(':');
+  if (i === -1) return null;
+  const head = rest.slice(0, i), tail = rest.slice(i + 1);
+  return head === 'ref' ? { kind: 'ref', ref: tail } : { kind: 'plan', planId: head, seq: +tail };
+}
+/* Reverse a chapter/book note's display ref (e.g. "Genesis 3", "Jude 1-25")
+   back into the r/<code>/<chapter> route, using the same book names it was
+   built from -- so this stays correct even though ESV's own display can
+   cosmetically differ (e.g. "Psalm" vs "Psalms"). Returns null only if the
+   ref can't be matched (shouldn't happen for notes this app wrote). */
+function noteHref(parsed, refText) {
+  if (parsed.kind === 'plan') return `note/p/${parsed.planId}/${parsed.seq}`;
+  for (const b of BY.values()) {
+    if (b.single) { if (refText === `${b.name} 1-${b.verses[0]}`) return `note/r/${b.code}/1`; }
+    else if (refText.startsWith(b.name + ' ')) {
+      const rest = refText.slice(b.name.length + 1);
+      if (/^\d+$/.test(rest)) return `note/r/${b.code}/${rest}`;
+    }
+  }
+  return null;
+}
+
+/* Reading progress: a plain done/not-done flag per plan entry. Only plan
+   entries have a natural notion of "done" (a book/chapter browse has no
+   fixed slot to mark against), so this is keyed like notes are. */
+const dkey    = (e) => `nk:done:${e.planId}:${e.seq}`;
+const isDone  = (e) => e.planId ? !!LS.get(dkey(e), false) : false;
+const setDone = (e, v) => v ? LS.set(dkey(e), true) : LS.del(dkey(e));
+const toggleDone = (e) => setDone(e, !isDone(e));
 
 const CACHE_MAX = 220;
 const cacheGet = (r) => LS.get('nk:psg:' + r, null);
@@ -234,6 +305,28 @@ function cachePut(r, d) {
 let PLAN = null, BOOKS = null, BY = new Map();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+/* Minimal Markdown -> HTML for the notes preview: bold, italic, bullet and
+   numbered lists, paragraphs. Deliberately small -- a preview of what you
+   typed, not a general renderer (no headings/links/nesting). Escapes first,
+   so this is safe to inject as innerHTML. */
+function mdToHtml(srcText) {
+  const lines = esc(srcText || '').replace(/\r\n/g, '\n').split('\n');
+  let html = '', para = [], list = null;
+  const flushPara = () => { if (para.length) { html += `<p>${para.join(' ')}</p>`; para = []; } };
+  const flushList = () => { if (list) { html += `<${list.type}>${list.items.map(i => `<li>${i}</li>`).join('')}</${list.type}>`; list = null; } };
+  const inline = (t) => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>');
+  for (const raw of lines) {
+    const line = raw.trim();
+    const bullet = line.match(/^[-*]\s+(.*)/);
+    const numbered = line.match(/^\d+[.)]\s+(.*)/);
+    if (bullet) { flushPara(); if (!list || list.type !== 'ul') { flushList(); list = { type: 'ul', items: [] }; } list.items.push(inline(bullet[1])); }
+    else if (numbered) { flushPara(); if (!list || list.type !== 'ol') { flushList(); list = { type: 'ol', items: [] }; } list.items.push(inline(numbered[1])); }
+    else if (!line) { flushList(); flushPara(); }
+    else { flushList(); para.push(inline(line)); }
+  }
+  flushList(); flushPara();
+  return html || '<p>Nothing written yet.</p>';
+}
 const topbar = $('topbar'), bodyEl = $('body'), inner = $('inner'), botbar = $('botbar');
 
 async function boot() {
@@ -247,6 +340,15 @@ async function boot() {
   route();
 }
 
+/* Navigating to the hash you're already on (e.g. "Done" from the reading
+   options sheet, which never changed the hash to get there) fires no
+   hashchange event, so the app would just sit on the current page. Route
+   explicitly in that case instead of relying on the event. */
+function go(href) {
+  const h = '#' + href;
+  if (location.hash === h) route(); else location.hash = h;
+}
+
 /* ── chrome helpers ──────────────────────────────────────────────────── */
 function chrome({ title, back, tabs, bottom }) {
   topbar.innerHTML =
@@ -258,13 +360,26 @@ function chrome({ title, back, tabs, bottom }) {
     }).join('')}</span>` : '');
   if (bottom) { botbar.innerHTML = bottom; botbar.classList.remove('hidden'); }
   else { botbar.innerHTML = ''; botbar.classList.add('hidden'); }
-  topbar.querySelectorAll('[data-go]').forEach(b => b.onclick = () => location.hash = '#' + b.dataset.go);
+  topbar.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
 }
 function page(html, { scroll = true } = {}) {
   bodyEl.classList.toggle('nopad', !scroll);
   bodyEl.innerHTML = scroll ? `<div class="inner">${html}</div>` : html;
   bodyEl.scrollTop = 0;
-  bodyEl.querySelectorAll('[data-go]').forEach(b => b.onclick = () => location.hash = '#' + b.dataset.go);
+  bodyEl.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  // Done-checkboxes toggle in place — no re-route, no full-page e-ink flash —
+  // so ticking one off a long week list doesn't cost a refresh per tap.
+  bodyEl.querySelectorAll('[data-tgl]').forEach(b => b.onclick = (ev) => {
+    ev.preventDefault();
+    const [planId, seqStr] = b.dataset.tgl.split('|');
+    const e = { planId, seq: +seqStr };
+    toggleDone(e);
+    const done = isDone(e);
+    const trow = b.closest('.trow');
+    if (trow) trow.dataset.done = done ? '1' : '0';
+    b.textContent = done ? '✓' : '';
+    b.setAttribute('aria-pressed', String(done));
+  });
 }
 
 /* ── router ──────────────────────────────────────────────────────────── */
@@ -276,6 +391,7 @@ function route() {
     case 'r':     return viewReader({ kind: 'chapter', code: seg[1], ch: +seg[2] });
     case 'p':     return viewReader({ kind: 'plan', planId: seg[1], seq: +seg[2] });
     case 'note':  return viewNote(seg.slice(1));
+    case 'notes': return viewNotesList();
     case 'plan':
     default:
       if (seg[1] && seg[2]) return viewMovement(seg[1], seg[2]);
@@ -291,10 +407,11 @@ function viewPlans() {
     const pos = LS.get('nk:pos:' + pl.id, null);
     const here = pos ? pl.bySeq.get(pos) : null;
     const readings = pl.entries.filter(e => e.type === 'reading').length;
+    const done = pl.entries.filter(e => isDone({ planId: pl.id, seq: e.seq })).length;
     return `<button class="row" data-go="plan/${pl.id}">
       <span class="lead">${pl.id.toUpperCase()}</span>
       <span><span class="ttl">${esc(pl.name)}</span>
-        <div class="meta">${pl.movements.length} movements · ${readings.toLocaleString()} readings</div>
+        <div class="meta">${pl.movements.length} movements · ${readings.toLocaleString()} readings${done ? ` · ${done.toLocaleString()} done` : ''}</div>
         ${here ? `<div class="meta"><b>Last open — ${esc(here.passage)}</b></div>` : ''}</span>
       <span class="tail">${here ? 'Resume' : 'Begin'}</span>
     </button>`;
@@ -314,11 +431,16 @@ function viewMovements(planId) {
     const es = pl.entries.filter(e => e.movement === m.id);
     if (!es.length) return '';
     const here = pos && es.some(e => e.seq === pos);
+    const readingEs = es.filter(e => e.type === 'reading');
+    const doneCount = readingEs.filter(e => isDone({ planId: pl.id, seq: e.seq })).length;
+    const tailLines = [`${readingEs.length} reading${readingEs.length === 1 ? '' : 's'}`];
+    if (doneCount) tailLines.push(`${doneCount} done`);
+    if (here) tailLines.push('HERE');
     return `<button class="row" data-go="plan/${pl.id}/${m.id}">
       <span class="lead">${m.id > 6 ? '—' : m.id}</span>
       <span><span class="ttl">${esc(m.title)}</span>
         <div class="meta">${esc(m.strands.join(' · '))}</div></span>
-      <span class="tail">${es.filter(e => e.type === 'reading').length}${here ? '<br>HERE' : ''}</span>
+      <span class="tail">${tailLines.join('<br>')}</span>
     </button>`;
   }).join('') + '</div>');
 }
@@ -338,11 +460,14 @@ function viewMovement(planId, movId) {
     [...weeks.entries()].map(([w, list]) => `
       <div class="sect">Week ${w}</div>
       <div class="rows" style="border-top:none;margin-top:0">
-      ${list.map(e => `<button class="row" data-review="${e.type === 'review' ? 1 : 0}" data-go="p/${pl.id}/${e.seq}">
-        <span class="lead">${getNote({ planId: pl.id, seq: e.seq, ref: e.ref }) ? '✒' : ''}${e.seq === pos ? '▮' : ''}</span>
-        <span><span class="ttl">${esc(e.passage)}</span>
-          <div class="meta">${esc(e.strand || e.book || 'review')}</div></span>
-        <span class="tail"></span></button>`).join('')}
+      ${list.map(e => { const done = isDone({ planId: pl.id, seq: e.seq });
+        return `<div class="trow" data-review="${e.type === 'review' ? 1 : 0}" data-done="${done ? 1 : 0}">
+        <button class="tchk" data-tgl="${pl.id}|${e.seq}" aria-pressed="${done}" aria-label="${done ? 'Mark not done' : 'Mark done'}">${done ? '✓' : ''}</button>
+        <button class="tgo" data-go="p/${pl.id}/${e.seq}">
+          <span class="lead">${getNote({ planId: pl.id, seq: e.seq, ref: e.ref }) ? '✒' : ''}${e.seq === pos ? '▮' : ''}</span>
+          <span><span class="ttl">${esc(e.passage)}</span>
+            <div class="meta">${esc(e.strand || e.book || 'review')}</div></span>
+        </button></div>`; }).join('')}
       </div>`).join(''));
 }
 
@@ -578,10 +703,10 @@ function renderReview(ctx, entry, sub) {
 function wireBottom(nb, paged) {
   const prev = $('b-prev'), next = $('b-next'), pos = $('b-pos'), note = $('b-note');
   if (!prev) return;
-  note.onclick = () => location.hash = '#note/' + (PG.ctx.kind === 'plan' ? `p/${PG.ctx.planId}/${PG.ctx.seq}` : `r/${PG.ctx.code}/${PG.ctx.ch}`);
+  note.onclick = () => go('note/' + (PG.ctx.kind === 'plan' ? `p/${PG.ctx.planId}/${PG.ctx.seq}` : `r/${PG.ctx.code}/${PG.ctx.ch}`));
   pos.onclick = openOptions;
-  prev.onclick = () => paged && PG.page > 0 ? turn(-1) : (nb.prev ? location.hash = '#' + nb.prev : null);
-  next.onclick = () => paged && PG.page < PG.pages - 1 ? turn(1) : (nb.next ? location.hash = '#' + nb.next : null);
+  prev.onclick = () => paged && PG.page > 0 ? turn(-1) : (nb.prev ? go(nb.prev) : null);
+  next.onclick = () => paged && PG.page < PG.pages - 1 ? turn(1) : (nb.next ? go(nb.next) : null);
   if (!nb.prev && !paged) prev.disabled = true;
   if (!nb.next && !paged) next.disabled = true;
   const l = $('tz-l'), r = $('tz-r');
@@ -636,8 +761,13 @@ addEventListener('resize', () => { if ($('flow') && $('flow').children.length > 
 function openOptions() {
   const c = cfg();
   const ctx = PG.ctx;
+  const done = ctx.kind === 'plan' && isDone({ planId: ctx.planId, seq: ctx.seq });
   chrome({ title: 'Reading options', back: { href: ctx.kind === 'plan' ? `p/${ctx.planId}/${ctx.seq}` : `r/${ctx.code}/${ctx.ch}`, label: 'Done' } });
-  page(`<div class="sect">Type</div>
+  page(`${ctx.kind === 'plan' ? `<div class="sect">Progress</div>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn${done ? ' fill' : ''}" id="o-done">${done ? '✓ Marked done — tap to undo' : 'Mark this reading done'}</button>
+    </div>` : ''}
+    <div class="sect">Type</div>
     <div class="btnrow" style="margin-top:14px">
       <div class="stepper"><button id="s-dn">A−</button><span class="val" id="s-val">${c.size}px</span><button id="s-up">A+</button></div>
       <div class="stepper"><button id="l-dn">↕−</button><span class="val" id="l-val">${c.lead.toFixed(2)}</span><button id="l-up">↕+</button></div>
@@ -658,12 +788,38 @@ function openOptions() {
   $('l-dn').onclick = () => { const v = Math.max(1.2, +(c2().lead - .06).toFixed(2)); setCfg({ lead: v }); $('l-val').textContent = v.toFixed(2); };
   $('o-inv').onclick = () => { const v = c2().invert ? 0 : 1; setCfg({ invert: v }); openOptions(); };
   $('o-ref').onclick = flashRefresh;
+  const doneBtn = $('o-done');
+  if (doneBtn) doneBtn.onclick = () => { toggleDone({ planId: ctx.planId, seq: ctx.seq }); openOptions(); };
 }
 function flashRefresh() {
   const d = document.createElement('div');
   d.style.cssText = 'position:fixed;inset:0;background:#000;z-index:999';
   document.body.appendChild(d);
   setTimeout(() => { d.style.background = '#fff'; setTimeout(() => d.remove(), 120); }, 120);
+}
+
+/* ── notes list ─────────────────────────────────────────────────────── */
+function viewNotesList() {
+  chrome({ title: 'Notes', back: { href: 'setup', label: 'Setup' } });
+  const rows = allNotes()
+    .map(k => ({ note: LS.get(k, null), parsed: parseNoteKey(k) }))
+    .filter(x => x.note && x.parsed)
+    .sort((a, b) => (b.note.at || 0) - (a.note.at || 0));
+  if (!rows.length) {
+    page('<div class="panel"><p>No notes yet — save one from any passage you\'re reading.</p></div>');
+    return;
+  }
+  page(`<div class="rows">${rows.map(({ note, parsed }) => {
+    const href = noteHref(parsed, note.ref);
+    const clean = (note.text || '').replace(/\s+/g, ' ').trim();
+    const snippet = esc(clean.slice(0, 90)) + (clean.length > 90 ? '…' : '');
+    const inner = `<span class="lead">✒</span>
+      <span><span class="ttl">${esc(note.ref || 'Untitled')}</span>
+        <div class="meta">${snippet || '<i>Empty note.</i>'}</div>
+        <div class="meta">${new Date(note.at).toLocaleDateString()}</div></span>
+      <span class="tail"></span>`;
+    return href ? `<button class="row" data-go="${href}">${inner}</button>` : `<div class="row">${inner}</div>`;
+  }).join('')}</div>`);
 }
 
 /* ── note page ───────────────────────────────────────────────────────── */
@@ -684,13 +840,40 @@ function viewNote(seg) {
   const canPush = !!(entry.planId && entry.day != null && entry.notion);
   chrome({ title: 'Note · ' + title, back: { href: backHref, label: 'Back' } });
   page(`<p class="quote">Read it again. What changed in what you noticed?</p>
+    <div class="btnrow" id="n-toolbar" style="margin-top:0">
+      <button class="btn" id="n-bold" aria-label="Bold"><b>B</b></button>
+      <button class="btn" id="n-ital" aria-label="Italic"><i>I</i></button>
+    </div>
     <textarea id="ta" placeholder="Whatever you saw this time.">${esc(saved ? saved.text : '')}</textarea>
+    <div class="panel hidden" id="n-preview"></div>
     <div class="btnrow">
       <button class="btn fill" id="n-save">Save</button>
+      <button class="btn" id="n-prev">Preview</button>
       ${canPush ? '<button class="btn" id="n-push">To Notion</button>' : ''}
       <span class="said" id="n-said">${saved ? 'Saved ' + new Date(saved.at).toLocaleDateString() : 'Kept on this device.'}</span>
     </div>`);
-  const ta = $('ta'), said = $('n-said');
+  const ta = $('ta'), said = $('n-said'), prevBtn = $('n-prev'), prevPane = $('n-preview'), toolbar = $('n-toolbar');
+  let previewing = false;
+  prevBtn.onclick = () => {
+    previewing = !previewing;
+    if (previewing) prevPane.innerHTML = mdToHtml(ta.value);
+    ta.classList.toggle('hidden', previewing);
+    toolbar.classList.toggle('hidden', previewing);
+    prevPane.classList.toggle('hidden', !previewing);
+    prevBtn.textContent = previewing ? 'Edit' : 'Preview';
+    prevBtn.classList.toggle('fill', previewing);
+  };
+  // Wrap the current selection in a Markdown marker (or, with nothing
+  // selected, drop the cursor between an empty pair) and keep focus in the
+  // textarea so the next keystroke lands right where it should.
+  const wrap = (marker) => {
+    const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+    ta.value = v.slice(0, s) + marker + v.slice(s, e) + marker + v.slice(e);
+    ta.focus();
+    ta.setSelectionRange(s + marker.length, e + marker.length);
+  };
+  $('n-bold').onclick = () => wrap('**');
+  $('n-ital').onclick = () => wrap('*');
   $('n-save').onclick = () => { putNote(entry, ta.value); said.textContent = ta.value.trim() ? 'Saved.' : 'Cleared.'; };
   const push = $('n-push');
   if (push) push.onclick = async () => {
@@ -711,7 +894,11 @@ function viewNote(seg) {
 function viewSetup() {
   const c = cfg(), n = allNotes().length;
   chrome({ title: 'Setup', tabs: 'setup' });
-  page(`<div class="sect">Worker</div>
+  page(`<div class="sect">App</div>
+    <div class="panel"><p>If a fix doesn't seem to have arrived, this device is most likely holding an older offline copy — browsers only check for a new one occasionally on their own, sometimes as rarely as once a day.</p>
+      <div class="btnrow"><button class="btn" id="sw-upd">Check for updates</button><span class="said" id="sw-said"></span></div></div>
+
+    <div class="sect">Worker</div>
     <label class="field"><span>Address</span>
       <input id="i-w" type="url" inputmode="url" spellcheck="false" autocapitalize="off"
              placeholder="https://narrowkind-scripture.you.workers.dev" value="${esc(c.worker)}"></label>
@@ -727,7 +914,10 @@ function viewSetup() {
 
     <div class="sect">Notes</div>
     <div class="panel"><p><b>${n}</b> note${n === 1 ? '' : 's'} on this device. Plan notes can also be pushed to their Notion row from the note itself.</p>
-      <div class="btnrow"><button class="btn" id="n-exp">Copy all as Markdown</button><span class="said" id="n-esaid"></span></div></div>
+      <div class="btnrow">
+        <button class="btn" data-go="notes">Browse all notes</button>
+        <button class="btn" id="n-exp">Copy all as Markdown</button><span class="said" id="n-esaid"></span>
+      </div></div>
 
     <div class="sect">Panel</div>
     <div class="btnrow" style="margin-top:14px">
@@ -761,6 +951,18 @@ function viewSetup() {
   };
   $('p-inv').onclick = () => { setCfg({ invert: cfg().invert ? 0 : 1 }); viewSetup(); };
   $('p-ref').onclick = flashRefresh;
+  $('sw-upd').onclick = async () => {
+    const said = $('sw-said');
+    if (!('serviceWorker' in navigator)) { said.textContent = 'Not available in this browser.'; return; }
+    said.textContent = 'Checking…';
+    try {
+      const reg = SWREG || await navigator.serviceWorker.getRegistration();
+      if (!reg) { said.textContent = 'No offline copy installed on this device yet.'; return; }
+      await reg.update();
+      said.textContent = 'Checked. Reloading…';
+      setTimeout(() => location.reload(), 500);
+    } catch { said.textContent = 'Could not check for updates.'; }
+  };
 }
 
 boot().catch(e => { inner.innerHTML = `<div class="panel"><h2>Could not load the plan</h2><p>${esc(e.message)}</p></div>`; });
@@ -769,8 +971,16 @@ boot().catch(e => { inner.innerHTML = `<div class="panel"><h2>Could not load the
 <script>
 /* Offline is the point: this reader is meant to live on an e-ink device that
    is often out of range. The shell and the plan are cached on first visit. */
+let SWREG = null;
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  // updateViaCache:'none' stops the browser treating sw.js itself as
+  // cacheable — without it, browsers can go up to ~24h between checking
+  // whether the registered worker is stale, no matter how often the page
+  // is reloaded. Reloading on controllerchange means a fix that did land
+  // (via the Setup "Check for updates" button, or the next natural check)
+  // shows up immediately instead of on the *next* load after that.
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => { SWREG = r; }).catch(() => {}));
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
 }
 </script>
 </body>
