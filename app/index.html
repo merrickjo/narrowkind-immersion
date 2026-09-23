@@ -14,6 +14,155 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <style>
+/* nav-kit v1.0.0 — inlined verbatim (this app ships as one file, and
+   tools/artifact-copy.mjs derives the preview from it). Do not edit this
+   block; replace it from Web_Apps/nav-kit when the kit version changes. */
+/* ══ nav-kit v1.0.0 ═══════════════════════════════════════════════════════
+   Floating bottom navigation shared by Tasks, Netflick, Narrowkind, NITRO.
+   Source of truth: Web_Apps/nav-kit. COPY this file into each app — never
+   edit the copy. Per-app look lives ONLY in that app's --gn-* overrides.
+   After copying a new version in, bump that app's service-worker cache.
+
+   Pattern extracted from tasks-pwa 4.0.3, including its hard-won fixes:
+     · height is MEASURED (nav-kit.js → --gn-h), never trusted from maths
+     · hide-on-keyboard uses !important, because apps set display inline
+     · a solid scrim fills the gap under the bar so content can't peek
+     · scroll containers reserve clearance via .gn-clear
+   Deliberately absent: blur, translucency, transitions, animation. The
+   "glass" is the shape — floating, inset, rounded — not the material.
+   That also keeps it safe on e-ink: solid fills, no fades, no ghosting.
+   ═════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* colour — every app overrides these six */
+  --gn-bg: #2C2C2C;
+  --gn-fg: #F5F1E8;
+  --gn-border: transparent;
+  --gn-active-bg: #F5F1E8;
+  --gn-active-fg: #2C2C2C;
+  --gn-active-rule: transparent; /* optional 2px underline on the active item */
+  --gn-scrim: transparent;       /* page colour behind the bar; set = --bg */
+
+  /* shape */
+  --gn-radius: 999px;            /* pill; item radius derives from it */
+  --gn-border-w: 1px;
+  --gn-shadow: none;             /* flat by default (Tasks: no elevation) */
+  --gn-inset: 12px;              /* gap to the screen edges and bottom */
+  --gn-pad: 4px;                 /* bar padding around the items */
+  --gn-gap: 4px;                 /* between items */
+  --gn-max: 480px;               /* bar stops growing on tablets/desktop */
+  --gn-item-h: 44px;             /* minimum tap target */
+
+  /* type */
+  --gn-font: inherit;
+  --gn-size: 12px;
+  --gn-weight: 700;
+  --gn-tracking: .09em;
+  --gn-case: uppercase;
+
+  /* layering + measured height (nav-kit.js overwrites --gn-h) */
+  --gn-z: 20;
+  --gn-h: 54px;
+}
+
+.gn {
+  position: fixed;
+  left: var(--gn-inset);
+  right: var(--gn-inset);
+  bottom: calc(var(--gn-inset) + env(safe-area-inset-bottom));
+  z-index: var(--gn-z);
+  max-width: var(--gn-max);
+  margin-inline: auto;
+  box-sizing: border-box;
+  display: flex;
+  gap: var(--gn-gap);
+  padding: var(--gn-pad);
+  border-radius: var(--gn-radius);
+  border: var(--gn-border-w) solid var(--gn-border);
+  background: var(--gn-bg);
+  box-shadow: var(--gn-shadow);
+}
+
+.gn-item {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--gn-item-h);
+  margin: 0;
+  padding: 0 10px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: calc(var(--gn-radius) - var(--gn-pad));
+  background: transparent;
+  color: var(--gn-fg);
+  font: var(--gn-weight) var(--gn-size)/1.15 var(--gn-font);
+  letter-spacing: var(--gn-tracking);
+  text-transform: var(--gn-case);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.gn-item svg { width: 20px; height: 20px; flex: none; }
+
+/* active: any of the three conventions the apps already use */
+.gn-item[aria-current="page"],
+.gn-item[aria-current="true"],
+.gn-item[aria-selected="true"],
+.gn-item[aria-pressed="true"],
+.gn-item.is-active {
+  background: var(--gn-active-bg);
+  color: var(--gn-active-fg);
+  box-shadow: inset 0 -2px 0 var(--gn-active-rule);
+}
+
+/* action variant (NITRO Reroll): always filled, a little wider */
+.gn-item.gn-action {
+  flex-grow: 1.6;
+  background: var(--gn-active-bg);
+  color: var(--gn-active-fg);
+}
+
+/* thin divider between a tab group and an action */
+.gn-sep {
+  flex: none;
+  width: var(--gn-border-w);
+  margin: 8px 2px;
+  background: var(--gn-fg);
+  opacity: .35;
+}
+
+/* keyboard focus stays visible without colour tricks */
+.gn-item:focus-visible { outline: 2px solid var(--gn-fg); outline-offset: -4px; }
+
+/* solid backdrop from the bar's top edge down to the screen edge */
+.gn-scrim {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: calc(var(--gn-h) + var(--gn-inset) * 2 + env(safe-area-inset-bottom));
+  z-index: calc(var(--gn-z) - 1);
+  background: var(--gn-scrim);
+  pointer-events: none;
+}
+
+/* put on whichever element scrolls, so its last row clears the bar */
+.gn-clear {
+  padding-bottom: calc(var(--gn-h) + var(--gn-inset) * 2 + env(safe-area-inset-bottom)) !important;
+}
+
+/* keyboard up → bar and scrim step aside (nav-kit.js toggles the class).
+   !important is load-bearing: apps set display inline (tasks 4.0.3). */
+html.gn-kbd .gn,
+html.gn-kbd .gn-scrim { display: none !important; }
+html.gn-kbd .gn-clear { padding-bottom: 16px !important; }
+
+@media print { .gn, .gn-scrim { display: none !important; } }
+
+</style>
+<style>
 /* ══ E-INK FIRST ═══════════════════════════════════════════════════════
    Built for a B&W E Ink Carta panel (Bigme HiBreak Pro).
    Rules this stylesheet obeys without exception:
@@ -23,7 +172,10 @@
      · no animation, no transition, no opacity fade. Every one of those
        leaves ghosting behind on an e-ink refresh.
      · no scrolling in the reader. Pagination only.
-     · nothing position:fixed over scrollable content, for the same reason.
+     · one exception, decided 2026-09-23: the bottom bar floats
+       (position:fixed, nav-kit v1.0.0, shared with Merrick's other apps).
+       It stays solid paper with a 1px ink keyline, never translucent, and
+       .body reserves its height so text never paginates underneath it.
      · hairlines are 1px solid ink, corners are square — antialiased
        curves and shadows are exactly what a 16-level panel cannot draw.
    ═════════════════════════════════════════════════════════════════════ */
@@ -56,7 +208,7 @@ a{color:inherit}
    the area the browser's own chrome can occupy) instead of the current
    visual viewport. Getting this backwards is why the frame could clip or
    need a scroll gesture to coax the browser's own bottom bar out of the way. */
-.frame{display:grid;grid-template-rows:auto 1fr auto;height:100vh;height:100dvh;overflow:hidden}
+.frame{display:grid;grid-template-rows:auto 1fr;height:100vh;height:100dvh;overflow:hidden}
 .topbar{display:flex;align-items:center;gap:14px;padding:11px var(--pad);border-bottom:1px solid var(--ink);
         min-height:46px;flex:none}
 .topbar .t{font-family:var(--sans);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
@@ -73,13 +225,14 @@ a{color:inherit}
 .body.nopad{overflow:hidden}
 .inner{padding:var(--pad) var(--pad) 34px;max-width:720px;margin-inline:auto}
 
-.botbar{display:flex;align-items:stretch;border-top:1px solid var(--ink);flex:none;min-height:56px}
-.botbar button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
-               font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-               border-right:1px solid var(--ink);padding:0 6px}
-.botbar button:last-child{border-right:none}
-.botbar button:active{background:var(--ink);color:var(--paper)}
-.botbar .wide{flex:1.5}
+/* ── bottom bar: floating nav-kit pill. Tabs (Plan · Read · Set) on the
+   browsing pages; ‹ Prev · page · Note · Next › inside the reader. Look is
+   tokens only — solid paper, 1px ink keyline, inverted active item. ── */
+:root{--gn-bg:var(--paper);--gn-fg:var(--ink);--gn-border:var(--ink);
+      --gn-active-bg:var(--ink);--gn-active-fg:var(--paper);--gn-scrim:var(--paper);
+      --gn-font:var(--sans);--gn-size:12px;--gn-tracking:.08em}
+.botbar .gn-item:active{background:var(--ink);color:var(--paper)}
+.botbar .wide{flex-grow:1.5}
 .botbar [disabled]{opacity:1;color:var(--paper);background:var(--paper);
                    text-decoration:none;visibility:hidden}
 
@@ -213,8 +366,82 @@ textarea::placeholder{color:var(--ink);opacity:.45}
 <div class="frame">
   <div class="topbar" id="topbar"></div>
   <div class="body" id="body"><div class="inner" id="inner"></div></div>
-  <div class="botbar hidden" id="botbar"></div>
 </div>
+<div class="gn-scrim hidden" id="gnscrim"></div>
+<nav class="botbar gn hidden" id="botbar" aria-label="Primary"></nav>
+<script>
+/* nav-kit v1.0.0 — companion to nav-kit.css. Classic script, no build step.
+   Include it with a deferred script tag (src="nav-kit.js", defer). This
+   comment avoids a literal closing script tag so the file can be inlined.
+   It does exactly two jobs and nothing else:
+     1. measures the rendered .gn height and writes it to --gn-h, so
+        clearance never depends on hand-maths (the tasks 4.0.3 lesson);
+     2. toggles html.gn-kbd while a text field is focused on a touch
+        device, so the bar never sits on top of what you are typing.
+   Routing stays in each app. NavKit.setActive(id) is an optional helper. */
+(function () {
+  'use strict';
+  var root = document.documentElement;
+
+  function measure(nav) {
+    var h = nav.getBoundingClientRect().height;
+    if (h > 0) root.style.setProperty('--gn-h', Math.round(h) + 'px');
+  }
+
+  function watchHeight() {
+    var nav = document.querySelector('.gn');
+    if (!nav) return;
+    measure(nav);
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(function () { measure(nav); }).observe(nav);
+    }
+  }
+
+  /* Keyboard detection. Two signals, either one is enough:
+     - a text-entry element has focus on a coarse pointer (works on
+       Android with interactive-widget=resizes-content, where the
+       visual viewport does NOT shrink), or
+     - the visual viewport is much shorter than the layout viewport (iOS). */
+  var TEXTY = /^(text|search|email|url|tel|password|number|date|time|datetime-local)$/;
+  var coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+
+  function isTextEntry(el) {
+    if (!el) return false;
+    if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
+    return el.tagName === 'INPUT' && TEXTY.test(el.type || 'text');
+  }
+
+  function updateKbd() {
+    var vv = window.visualViewport;
+    var shrunk = vv ? (window.innerHeight - vv.height) > 150 : false;
+    var typing = coarse && isTextEntry(document.activeElement);
+    root.classList.toggle('gn-kbd', shrunk || typing);
+  }
+
+  function watchKeyboard() {
+    document.addEventListener('focusin', updateKbd);
+    document.addEventListener('focusout', function () { setTimeout(updateKbd, 50); });
+    if (window.visualViewport) visualViewport.addEventListener('resize', updateKbd);
+  }
+
+  /* Optional: mark the item whose data-gn matches id as current. */
+  function setActive(id) {
+    var items = document.querySelectorAll('.gn .gn-item[data-gn]');
+    for (var i = 0; i < items.length; i++) {
+      var on = items[i].getAttribute('data-gn') === id;
+      if (on) items[i].setAttribute('aria-current', 'page');
+      else items[i].removeAttribute('aria-current');
+    }
+  }
+
+  function init() { watchHeight(); watchKeyboard(); updateKbd(); }
+
+  window.NavKit = { version: '1.0.0', setActive: setActive, remeasure: watchHeight };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+</script>
 
 <script>
 (() => {
@@ -353,14 +580,22 @@ function go(href) {
 function chrome({ title, back, tabs, bottom }) {
   topbar.innerHTML =
     (back ? `<button class="chip" data-go="${esc(back.href)}">${esc(back.label)}</button>` : '') +
-    `<span class="t">${esc(title)}</span>` +
-    (tabs ? `<span class="r">${['plan|Plan', 'read|Read', 'setup|Set'].map(t => {
+    `<span class="t">${esc(title)}</span>`;
+  /* One floating bar at the bottom: the reader's page controls when given,
+     otherwise the section tabs. .gn-clear makes .body reserve its height so
+     no row (and no paginated page) ever sits underneath it. */
+  const barHtml = bottom || (tabs ? ['plan|Plan', 'read|Read', 'setup|Set'].map(t => {
       const [id, lbl] = t.split('|');
-      return `<button class="navlink" data-go="${id}" aria-current="${tabs === id}">${lbl}</button>`;
-    }).join('')}</span>` : '');
-  if (bottom) { botbar.innerHTML = bottom; botbar.classList.remove('hidden'); }
-  else { botbar.innerHTML = ''; botbar.classList.add('hidden'); }
+      return `<button class="gn-item" data-go="${id}"${tabs === id ? ' aria-current="page"' : ''}>${lbl}</button>`;
+    }).join('') : '');
+  botbar.innerHTML = barHtml;
+  botbar.setAttribute('aria-label', bottom ? 'Reader' : 'Sections');
+  botbar.querySelectorAll('button').forEach(b => b.classList.add('gn-item'));
+  botbar.classList.toggle('hidden', !barHtml);
+  $('gnscrim').classList.toggle('hidden', !barHtml);
+  bodyEl.classList.toggle('gn-clear', !!barHtml);
   topbar.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  botbar.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
 }
 function page(html, { scroll = true } = {}) {
   bodyEl.classList.toggle('nopad', !scroll);
