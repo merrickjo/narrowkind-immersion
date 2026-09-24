@@ -9,9 +9,20 @@
  *
  * Bump SHELL_V to force a re-download of index.html / plan.json / books.json.
  */
-const SHELL_V = 'nk-shell-v7';
+const SHELL_V = 'nk-shell-v8';
 const DATA_V  = 'nk-data-v1';
-const SHELL = ['./', 'index.html', 'plan.json', 'books.json', 'manifest.json', 'icon.svg'];
+const SHELL = ['./', 'index.html', 'plan.json', 'books.json', 'manifest.json', 'icon.svg',
+  // carpe-kit v2.0.0 UI fonts (scripture Literata still comes from Google Fonts)
+  'fonts/ibm-plex-sans-latin-400-normal.woff2',
+  'fonts/ibm-plex-sans-latin-400-italic.woff2',
+  'fonts/ibm-plex-sans-latin-600-normal.woff2',
+  'fonts/ibm-plex-sans-latin-700-normal.woff2',
+  'fonts/ibm-plex-sans-condensed-latin-600-normal.woff2',
+  'fonts/ibm-plex-sans-condensed-latin-700-normal.woff2',
+  'fonts/ibm-plex-mono-latin-400-normal.woff2',
+  'fonts/ibm-plex-mono-latin-500-normal.woff2',
+  'fonts/ibm-plex-mono-latin-700-normal.woff2',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {

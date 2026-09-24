@@ -12,27 +12,103 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Narrowkind Immersion</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap">
 <style>
-/* nav-kit v1.0.0 — inlined verbatim (this app ships as one file, and
-   tools/artifact-copy.mjs derives the preview from it). Do not edit this
-   block; replace it from Web_Apps/nav-kit when the kit version changes. */
-/* ══ nav-kit v1.0.0 ═══════════════════════════════════════════════════════
-   Floating bottom navigation shared by Tasks, Netflick, Narrowkind, NITRO.
-   Source of truth: Web_Apps/nav-kit. COPY this file into each app — never
-   edit the copy. Per-app look lives ONLY in that app's --gn-* overrides.
-   After copying a new version in, bump that app's service-worker cache.
+/* carpe-kit v2.0.0 — inlined verbatim (this app ships as one file, and
+   tools/artifact-copy.mjs derives the preview from it). Fonts resolve to
+   app/fonts. Do not edit this block; replace it from Web_Apps/carpe-kit
+   when the kit version changes. Scripture keeps its own Literata (Google
+   Fonts link above, unchanged); the kit's title face is "Carpe Literata"
+   and is never requested here. */
+/* ══ carpe-kit v2.0.0 ═════════════════════════════════════════════════════
+   The shared design system for Merrick's web apps: Carpe Tasks, NITRO,
+   Netflick, Narrowkind Immersion. (v1 was nav-kit: the floating bar only.)
+   Source of truth: Web_Apps/carpe-kit. COPY this file, carpe-kit.js and
+   fonts/ into each app; never edit the copies. An app's own identity lives
+   ONLY in its colour tokens (--gn-* and its own palette). Type, spacing,
+   shape and the bar are shared. Bump the app's service-worker cache on
+   every copy-in and add the font files to its precache list.
 
-   Pattern extracted from tasks-pwa 4.0.3, including its hard-won fixes:
-     · height is MEASURED (nav-kit.js → --gn-h), never trusted from maths
-     · hide-on-keyboard uses !important, because apps set display inline
-     · a solid scrim fills the gap under the bar so content can't peek
-     · scroll containers reserve clearance via .gn-clear
-   Deliberately absent: blur, translucency, transitions, animation. The
-   "glass" is the shape — floating, inset, rounded — not the material.
-   That also keeps it safe on e-ink: solid fills, no fades, no ghosting.
+   Principles (README has the reasoning):
+     1  E-ink first. Solid fills, no blur, no translucency, no motion.
+     2  Hierarchy by type — size, weight, case, rules — not by colour.
+     3  Four voices, one per job: Plex Sans READS (body, inputs, lists);
+        Plex Sans Condensed COMMANDS (buttons, the bar, list-item names);
+        Plex Mono ANNOTATES (labels, counts, dates, reps); Literata TITLES
+        (page + section titles; in Narrowkind it also carries scripture,
+        loaded there exactly as before).
+     4  The label: Mono, 11px, uppercase, +.12em — above every section.
+     5  Numbers are Mono with tabular figures, so columns never jitter.
+     6  One spacing scale (4-pt), three corner sizes (0 · 8 · pill).
+     7  Colour is identity, not structure: each app keeps its own palette.
+     8  Offline by construction: fonts are self-hosted, never fetched.
    ═════════════════════════════════════════════════════════════════════ */
 
+/* ── fonts: self-hosted latin subsets (OFL, see fonts/LICENSE-*) ── */
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-style:italic;font-weight:400;font-display:swap;src:url("fonts/ibm-plex-sans-latin-400-italic.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-style:normal;font-weight:700;font-display:swap;src:url("fonts/ibm-plex-sans-latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans Condensed";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/ibm-plex-sans-condensed-latin-600-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Sans Condensed";font-style:normal;font-weight:700;font-display:swap;src:url("fonts/ibm-plex-sans-condensed-latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:500;font-display:swap;src:url("fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:700;font-display:swap;src:url("fonts/ibm-plex-mono-latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"Carpe Literata";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/literata-latin-600-normal.woff2") format("woff2")}
+
+:root {
+  /* ── type: families ── */
+  --ck-ui:      "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --ck-display: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --ck-data:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ck-title:   "Carpe Literata", "Literata", Charter, Georgia, serif;
+
+  /* ── type: scale (px) — label · meta · body · read · section · title ── */
+  --ck-fs-label: 11px;
+  --ck-fs-meta: 13px;
+  --ck-fs-body: 15px;
+  --ck-fs-read: 17px;
+  --ck-fs-section: 20px;
+  --ck-fs-title: 27px;
+  --ck-lh-tight: 1.18;
+  --ck-lh-body: 1.45;
+  --ck-track-label: .12em;
+
+  /* ── spacing: 4-pt scale ── */
+  --ck-s-1: 4px;
+  --ck-s-2: 8px;
+  --ck-s-3: 12px;
+  --ck-s-4: 16px;
+  --ck-s-5: 24px;
+  --ck-s-6: 32px;
+
+  /* ── shape ── */
+  --ck-r-0: 0;
+  --ck-r-1: 8px;
+  --ck-r-pill: 999px;
+  --ck-rule: 1px;          /* hairline */
+  --ck-rule-strong: 3px;   /* section rule */
+}
+
+/* ── opt-in helpers (apps may instead point their own selectors at tokens) ── */
+.ck-label {
+  font-family: var(--ck-data); font-weight: 500; font-size: var(--ck-fs-label);
+  letter-spacing: var(--ck-track-label); text-transform: uppercase; line-height: 1.3;
+}
+.ck-title {
+  font-family: var(--ck-title); font-weight: 600; font-size: var(--ck-fs-title);
+  line-height: var(--ck-lh-tight); letter-spacing: -.005em;
+}
+.ck-section {
+  font-family: var(--ck-title); font-weight: 600; font-size: var(--ck-fs-section);
+  line-height: var(--ck-lh-tight);
+}
+.ck-num { font-family: var(--ck-data); font-variant-numeric: tabular-nums; }
+
+/* ══ floating bottom bar (was nav-kit v1.0.0) ══════════════════════════
+   Pattern extracted from tasks-pwa 4.0.3: measured height (carpe-kit.js →
+   --gn-h), !important keyboard hide, solid scrim, .gn-clear clearance.
+   Apps set only its colour tokens; type and shape come from the kit. */
 :root {
   /* colour — every app overrides these six */
   --gn-bg: #2C2C2C;
@@ -54,10 +130,10 @@
   --gn-item-h: 44px;             /* minimum tap target */
 
   /* type */
-  --gn-font: inherit;
-  --gn-size: 12px;
-  --gn-weight: 700;
-  --gn-tracking: .09em;
+  --gn-font: var(--ck-display);
+  --gn-size: 13px;
+  --gn-weight: 600;
+  --gn-tracking: .08em;
   --gn-case: uppercase;
 
   /* layering + measured height (nav-kit.js overwrites --gn-h) */
@@ -173,7 +249,7 @@ html.gn-kbd .gn-clear { padding-bottom: 16px !important; }
        leaves ghosting behind on an e-ink refresh.
      · no scrolling in the reader. Pagination only.
      · one exception, decided 2026-09-23: the bottom bar floats
-       (position:fixed, nav-kit v1.0.0, shared with Merrick's other apps).
+       (position:fixed, carpe-kit v2.0.0, shared with Merrick's other apps).
        It stays solid paper with a 1px ink keyline, never translucent, and
        .body reserves its height so text never paginates underneath it.
      · hairlines are 1px solid ink, corners are square — antialiased
@@ -182,7 +258,7 @@ html.gn-kbd .gn-clear { padding-bottom: 16px !important; }
 :root{
   --paper:#FFFFFF; --ink:#000000;
   --serif:'Literata',Charter,'Noto Serif',Georgia,serif;
-  --sans:'Atkinson Hyperlegible','Noto Sans',system-ui,sans-serif;
+  --sans:var(--ck-ui);   /* carpe-kit: IBM Plex Sans (was Atkinson Hyperlegible) */
   --size:19px; --lead:1.62; --pad:20px;
 }
 :root[data-invert="1"]{ --paper:#000000; --ink:#FFFFFF; }
@@ -230,7 +306,7 @@ a{color:inherit}
    tokens only — solid paper, 1px ink keyline, inverted active item. ── */
 :root{--gn-bg:var(--paper);--gn-fg:var(--ink);--gn-border:var(--ink);
       --gn-active-bg:var(--ink);--gn-active-fg:var(--paper);--gn-scrim:var(--paper);
-      --gn-font:var(--sans);--gn-size:12px;--gn-tracking:.08em}
+}
 .botbar .gn-item:active{background:var(--ink);color:var(--paper)}
 .botbar .wide{flex-grow:1.5}
 .botbar [disabled]{opacity:1;color:var(--paper);background:var(--paper);
@@ -359,6 +435,13 @@ textarea::placeholder{color:var(--ink);opacity:.45}
 .tapzone{position:absolute;top:0;bottom:0;width:34%}
 .tapzone.l{left:0}.tapzone.r{right:0}
 .hidden{display:none!important}
+
+/* ── carpe-kit v2.0.0 alignment ──────────────────────────────────────────
+   UI voices only: labels annotate in Mono, buttons command in Condensed.
+   Scripture (#flow), --serif, --size, --lead and --pad are untouched —
+   the reading page stays exactly as it was. */
+.kicker,.sect,.row .tail,.panel h2,.field span,.topbar .t{font-family:var(--ck-data);font-weight:500;letter-spacing:var(--ck-track-label)}
+.btn,.chip{font-family:var(--ck-display);font-weight:600;letter-spacing:.06em}
 </style>
 </head>
 <body>
@@ -370,8 +453,8 @@ textarea::placeholder{color:var(--ink);opacity:.45}
 <div class="gn-scrim hidden" id="gnscrim"></div>
 <nav class="botbar gn hidden" id="botbar" aria-label="Primary"></nav>
 <script>
-/* nav-kit v1.0.0 — companion to nav-kit.css. Classic script, no build step.
-   Include it with a deferred script tag (src="nav-kit.js", defer). This
+/* carpe-kit v2.0.0 — companion to carpe-kit.css (the bar behaviour). Classic script, no build step.
+   Include it with a deferred script tag (src="carpe-kit.js", defer). This
    comment avoids a literal closing script tag so the file can be inlined.
    It does exactly two jobs and nothing else:
      1. measures the rendered .gn height and writes it to --gn-h, so
@@ -436,7 +519,7 @@ textarea::placeholder{color:var(--ink);opacity:.45}
 
   function init() { watchHeight(); watchKeyboard(); updateKbd(); }
 
-  window.NavKit = { version: '1.0.0', setActive: setActive, remeasure: watchHeight };
+  window.NavKit = { version: '2.0.0', setActive: setActive, remeasure: watchHeight };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
